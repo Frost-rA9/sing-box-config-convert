@@ -40,6 +40,7 @@ build/ out/   生成物（不要手改）
 模式档位  规则（默认）/ 全局 / 直连
 规则      基础 9 条 + custom 8 条 = 17 条
 rule-set  16 个，全部来自 SagerNet 官方仓库，热更新 + 本地冷启动快照
+产物      out/config.tun.json（桌面 TUN）· config.proxy.json（桌面系统代理）· config.android.json（SFA）
 ```
 
 订阅里的内联规则**不进入产物**（理由见 `AGENTS.md` §3）。

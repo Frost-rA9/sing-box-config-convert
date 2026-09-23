@@ -17,6 +17,7 @@ import json
 import os
 import sys
 from collections import OrderedDict
+from copy import deepcopy
 
 import yaml
 
@@ -353,20 +354,22 @@ def stage_final(report=None):
     body = build_body(policy, outbounds, rule_sets, rules, base_cfg["final"])
 
     artifacts = {}
-    for mode, name in (("tun", "config.tun.json"), ("proxy", "config.proxy.json")):
-        cfg = OrderedDict()
-        for k, v in body.items():
-            if not k.startswith("$"):
-                cfg[k] = v
+    for mode, name in (("tun", "config.tun.json"),
+                       ("proxy", "config.proxy.json"),
+                       ("android", "config.android.json")):
+        # deepcopy：否则 cfg["route"] 与 body["route"] 是同一个对象，
+        # 前一个模式对规则列表的改写会污染后一个模式
+        cfg = deepcopy(OrderedDict([(k, v) for k, v in body.items() if not k.startswith("$")]))
         # inbounds 按模式贴上去，插在 log/experimental/http_clients 之后
         inbounds = []
-        tun_src = policy["inbounds"]["tun"]
-        if mode == "tun" and tun_src.get("enabled", True):
-            inbounds.append(dict({"type": "tun"},
-                                 **{k: v for k, v in tun_src.items() if k != "enabled"}))
+        if mode in ("tun", "android"):
+            tun_src = policy["inbounds"].get("tun_android" if mode == "android" else "tun", {})
+            if tun_src.get("enabled", True):
+                inbounds.append(dict({"type": "tun"},
+                                     **strip_meta({k: v for k, v in tun_src.items() if k != "enabled"})))
         mixed_src = policy["inbounds"]["mixed"]
         idle_src = policy["inbounds"].get("tun_idle", {})
-        if mode != "tun" and idle_src and idle_src.get("enabled", True):
+        if mode == "proxy" and idle_src and idle_src.get("enabled", True):
             # 空载 tun：不接管流量，只承载 platform.http_proxy（官方客户端据此把系统代理
             # 写进登录用户的 hive）。核心本体忽略 platform.*，所以它对本仓脚本无副作用。
             idle = strip_meta({k: v for k, v in idle_src.items() if k != "enabled"})
@@ -376,13 +379,18 @@ def stage_final(report=None):
             inbounds.append(dict({"type": "tun"}, **idle))
         if mixed_src.get("enabled", True):
             mixed = {k: v for k, v in mixed_src.items() if k != "enabled"}
-            if mode == "tun":
-                mixed.pop("set_system_proxy", None)  # TUN 已接管，再设系统代理多余
+            if mode in ("tun", "android"):
+                # TUN 已接管；Android 上设系统代理需特权（SFA 下也不工作）
+                mixed.pop("set_system_proxy", None)
             inbounds.append(dict({"type": "mixed"}, **mixed))
         cfg["inbounds"] = inbounds
-        if mode != "tun":
+        if mode == "proxy":
             cfg["route"]["rules"] = [r for r in cfg["route"]["rules"]
-                                     if r.get("action") != "hijack-dns"]
+                                      if r.get("action") != "hijack-dns"]
+        if mode == "android":
+            # 本机的冷启动快照路径在 Android 上不存在 → 去掉 initial_path，直接从 url 下载
+            for rule_set in cfg["route"]["rule_set"]:
+                rule_set.pop("initial_path", None)
         # 重新排序为常规顺序
         ordered = OrderedDict()
         for key in ("log", "experimental", "http_clients", "inbounds", "outbounds", "dns", "route"):

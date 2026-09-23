@@ -49,6 +49,33 @@
         "geoip-cn"
       ]
     },
+    "tun_android": {
+      "$comment": "Android / SFA 专用 tun。与 tun 保持一致，仅按设备需要调参（stack / mtu / route_exclude_address_set）。产物层面还有一处差异：android 产物的 rule-set 不带 initial_path（那些冷启动快照是本机的绝对路径，Android 上不存在），改为直接从 url 下载。",
+      "enabled": true,
+      "tag": "tun-in",
+      "address": [
+        "172.19.0.1/30",
+        "2001:0470:f9da:fdfa::1/64"
+      ],
+      "mtu": 9000,
+      "auto_route": true,
+      "strict_route": false,
+      "stack": "system",
+      "dns_mode": "hijack",
+      "route_exclude_address": [
+        "127.0.0.0/8",
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "169.254.0.0/16",
+        "fd00::/8",
+        "fe80::/10",
+        "224.0.0.0/4"
+      ],
+      "route_exclude_address_set": [
+        "geoip-cn"
+      ]
+    },
     "tun_idle": {
       "$comment": "空载 tun：不接管流量（auto_route=false），只承载 platform.http_proxy —— 官方客户端的 daemon 据此冒充登录用户，把系统代理写进【你的】hive（mixed 的 set_system_proxy 在服务身份下只能写 SYSTEM 的 hive，见 AGENTS.md §4 的 I11）。核心本体忽略 platform.*，所以用 start-proxy.ps1 跑时靠 set_system_proxy 生效。@mixed 由 convert.py 替换为 mixed 端口。换内核版本后核对：protocol/tun/inbound.go、experimental/boxdd/platform_windows.go。",
       "enabled": true,

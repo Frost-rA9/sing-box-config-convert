@@ -7,6 +7,7 @@
 [2] nodes.json + base/ + policy.json            →  build/base.json
 [3] base.json + custom/ + policy.json           →  out/config.tun.json
                                                    out/config.proxy.json
+                                                   out/config.android.json
 ```
 
 ```bash
@@ -86,18 +87,19 @@ sing-box check -c out/config.tun.json              # 内核静态校验（内核
 | I4 | `route.default_domain_resolver` 指向**直连**解析器（指向走代理的会成环） |
 | I5 | 所有 `rule_set` 都是 `type: remote` |
 | I6 | 所有 rule-set URL 属于 SagerNet 官方仓库 |
-| I7 | `initial_path` 是绝对路径（sing-box 按**进程工作目录**解析相对路径） |
+| I7 | `initial_path` 是绝对路径（sing-box 按**进程工作目录**解析相对路径；android 见 I19） |
 | I8 | 所有 `outbound` / `detour` / `rule_set` 引用都存在 |
 | I9 | 出站 tag 唯一 |
 | I10 | `clash_api.default_mode` 不出现在 `clash_mode` 规则里 |
 | I11 | proxy 配置不得有**接管流量**的 tun（允许 `auto_route:false` 的空载 tun，仅承载 `platform.http_proxy`）；无 `hijack-dns`；有 `set_system_proxy` |
-| I12 | 两份配置除 `inbounds` 与 TUN 专属规则外完全一致 |
+| I12 | tun / proxy 两份除 `inbounds` 与 TUN 专属规则外完全一致 |
 | I13 | 基线层 5 个基础组 + 5 个粗粒度 rule-set 齐备 |
 | I14 | `base/rules.json` 有 `$anchor: catchall` |
 | I15 | custom 未覆盖基础组名 |
 | I16 | rule-set 冷启动快照齐备 |
-| I17 | 产物通过 `sing-box check` |
+| I17 | 三份产物通过 `sing-box check` |
 | I18 | 策略组顺序 = 声明里的 `order` |
+| I19 | android 产物：rule-set **不带** `initial_path`（本机快照路径 Android 上不存在）、mixed **不开** `set_system_proxy`（需特权，SFA 下也不工作） |
 
 ---
 

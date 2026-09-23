@@ -231,12 +231,20 @@ def check_config(path, mode, decls):
     else:
         ok("rule-set 全部来自 SagerNet 官方仓库")
 
-    rel = [r["initial_path"] for r in cfg["route"]["rule_set"]
-           if not os.path.isabs(r["initial_path"])]
-    if rel:
-        bad(f"initial_path 不是绝对路径（相对路径按进程工作目录解析）: {rel[:3]}")
+    if mode == "android":
+        # Android 看不到本机的冷启动快照 → 产物必须不带 initial_path（直接从 url 下载）
+        with_initial = [r["tag"] for r in cfg["route"]["rule_set"] if "initial_path" in r]
+        if with_initial:
+            bad(f"android 产物不应带 initial_path（本机快照路径在 Android 上不存在）: {with_initial[:3]}")
+        else:
+            ok("rule-set 不带 initial_path（Android 直接走 url 下载）")
     else:
-        ok("initial_path 全部是绝对路径")
+        rel = [r["initial_path"] for r in cfg["route"]["rule_set"]
+               if not os.path.isabs(r["initial_path"])]
+        if rel:
+            bad(f"initial_path 不是绝对路径（相对路径按进程工作目录解析）: {rel[:3]}")
+        else:
+            ok("initial_path 全部是绝对路径")
 
     # --- default_domain_resolver 必须指向直连解析器，否则成环
     ddr = cfg["route"].get("default_domain_resolver")
@@ -259,7 +267,7 @@ def check_config(path, mode, decls):
     else:
         ok(f"模式档位: [{api['default_mode']}] + {modes}")
 
-    if mode == "tun":
+    if mode in ("tun", "android"):
         if not tun:
             bad("tun 配置里没有 tun 入站")
         else:
@@ -280,6 +288,11 @@ def check_config(path, mode, decls):
                 ok("DNS 劫持规则存在")
             else:
                 bad("TUN 模式缺少 hijack-dns 规则")
+        if mode == "android":
+            if mixed and mixed.get("set_system_proxy"):
+                bad("android 产物的 mixed 不应开 set_system_proxy（Android 需特权，SFA 下也不工作）")
+            else:
+                ok("android：mixed 未开 set_system_proxy（走 VPN/TUN 语义）")
     else:
         # I11：proxy 模式不得有【接管流量】的 tun；允许一个空载 tun（auto_route=false）
         # 专用于承载 platform.http_proxy —— 官方客户端据此把系统代理写进登录用户的 hive。
@@ -356,6 +369,7 @@ def main():
 
     tun = check_config(os.path.join(OUT, "config.tun.json"), "tun", decls)
     proxy = check_config(os.path.join(OUT, "config.proxy.json"), "proxy", decls)
+    check_config(os.path.join(OUT, "config.android.json"), "android", decls)
     check_parity(tun, proxy)
 
     mp = os.path.join(OUT, "bootstrap_manifest.json")

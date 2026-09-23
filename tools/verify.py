@@ -298,6 +298,11 @@ def check_config(path, mode, decls):
                 bad("android 产物的 mixed 不应开 set_system_proxy（Android 需特权，SFA 下也不工作）")
             else:
                 ok("android：mixed 未开 set_system_proxy（走 VPN/TUN 语义）")
+            if tun and tun.get("route_exclude_address_set"):
+                bad("android 的 tun 不应带 route_exclude_address_set —— 它会被展开成几千条 CIDR 逐条 excludeRoute()，"
+                    "实测会让 Android 丢掉 IPv4 默认路由（境外流量全部直连）")
+            else:
+                ok("android：tun 未用 route_exclude_address_set（CN 流量由规则判直连）")
     else:
         # I11：proxy 模式不得有【接管流量】的 tun；允许一个空载 tun（auto_route=false）
         # 专用于承载 platform.http_proxy —— 官方客户端据此把系统代理写进登录用户的 hive。

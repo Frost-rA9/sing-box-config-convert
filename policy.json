@@ -50,7 +50,7 @@
       ]
     },
     "tun_android": {
-      "$comment": "Android / SFA 专用 tun。与 tun 保持一致，仅按设备需要调参（stack / mtu / route_exclude_address_set）。两处 Android 特有的差异：① route_exclude_address **不能含 127.0.0.0/8** —— SFA 会把它逐条交给 Android 的 VpnService.Builder.excludeRoute()，而 Java 的 isLoopbackAddress() 对整个 127.0.0.0/8 都返回 true，Builder.check() 于是抛 IllegalArgumentException(\"Bad address\")，内核报 configure tun interface: Bad address（回环本就不会进 VPN，去掉无语义损失）；② 产物不带 initial_path（冷启动快照是本机绝对路径，Android 上不存在），改为直接从 url 下载。",
+      "$comment": "Android / SFA 专用 tun。与 tun 保持一致，仅按设备需要调参（stack / mtu）。三处 Android 特有的差异：① route_exclude_address **不能含 127.0.0.0/8** —— SFA 会把它逐条交给 Android 的 VpnService.Builder.excludeRoute()，而 Java 的 isLoopbackAddress() 对整个 127.0.0.0/8 都返回 true，Builder.check() 于是抛 IllegalArgumentException(\"Bad address\")（回环本就不会进 VPN，去掉无语义损失）；② **不用 route_exclude_address_set** —— 它会被展开成几千条 CIDR 再逐条 excludeRoute()，实测会导致 Android 只保留 VPN 自带网段的路由、丢掉 IPv4 默认路由（现象：国内 App 能用、境外全挂，因为境外 IPv4 全部直连）；而且它还需要启动时先下载 geoip-cn 才能展开，拖慢建 VPN。去掉后 CN 流量进内核由规则判直连，结果一样；③ 产物不带 initial_path（冷启动快照是本机绝对路径），改为直接从 url 下载。",
       "enabled": true,
       "tag": "tun-in",
       "address": [
@@ -70,9 +70,6 @@
         "fd00::/8",
         "fe80::/10",
         "224.0.0.0/4"
-      ],
-      "route_exclude_address_set": [
-        "geoip-cn"
       ]
     },
     "tun_idle": {

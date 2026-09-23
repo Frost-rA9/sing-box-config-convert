@@ -99,7 +99,7 @@ sing-box check -c out/config.tun.json              # 内核静态校验（内核
 | I16 | rule-set 冷启动快照齐备 |
 | I17 | 三份产物通过 `sing-box check` |
 | I18 | 策略组顺序 = 声明里的 `order` |
-| I19 | android 产物三处差异：rule-set **不带** `initial_path`（本机快照路径 Android 上不存在）、mixed **不开** `set_system_proxy`（需特权，SFA 下也不工作）、`route_exclude_address` **不含** `127.0.0.0/8`（SFA 逐条交给 `VpnService.Builder.excludeRoute()`，而 Java 的 `isLoopbackAddress()` 对整个 127/8 返回 true → 抛 `IllegalArgumentException("Bad address")`） | Android 与桌面端的全部结构差异 |
+| I19 | android 产物四处差异：rule-set **不带** `initial_path`（本机快照路径 Android 上不存在）、mixed **不开** `set_system_proxy`（需特权，SFA 下也不工作）、`route_exclude_address` **不含** `127.0.0.0/8`（SFA 逐条交给 `VpnService.Builder.excludeRoute()`，而 Java 的 `isLoopbackAddress()` 对整个 127/8 返回 true → 抛 `IllegalArgumentException("Bad address")`）、tun **不用** `route_exclude_address_set`（会被展开成几千条 CIDR 逐条 `excludeRoute()`，实测让 Android 丢掉 IPv4 默认路由 → 境外流量全部直连） | Android 与桌面端的全部结构差异 |
 
 ---
 

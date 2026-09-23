@@ -26,7 +26,7 @@ sub/          订阅原文（只取节点；含凭据，不入库）
 base/         基线层：5 个基础组 + 9 条规则（agent 只读）
 custom/       自定义层：组 / 映射 / 内联规则（按需增删）
 policy.json   环境策略：TUN / DNS / 入站 / 模式档位
-docs/         案例笔记（为什么 proxy 模式要挂一个空载 tun）
+docs/         案例笔记（proxy 模式的空载 tun · SFA 的四条 Android 坑）
 build/ out/   生成物（不要手改）
 ```
 
@@ -58,3 +58,5 @@ rule-set  16 个，全部来自 SagerNet 官方仓库，热更新 + 本地冷启
 > 系统代理只认「内核所属用户」的 hive —— 服务身份设不到你头上。本仓用 `inbounds.tun_idle`（空载 tun + `platform.http_proxy`）解决，细节见该字段的 `$comment` 与 `AGENTS.md` §4 的 I11。
 >
 > 完整排查过程与原理：[`docs/system-proxy-case-study.zh.md`](docs/system-proxy-case-study.zh.md)（[English](docs/system-proxy-case-study.md)）
+>
+> Android / SFA 的四条特有坑：[`docs/sfa-notes.md`](docs/sfa-notes.md)

@@ -1,0 +1,10 @@
+{
+  "$comment": [
+    "自定义层 · 额外内联规则 —— 不依赖任何 rule-set 的匹配条件，适合少量精确域名。",
+    "position 同 custom/targets.json。",
+    "示例（当前为空）：",
+    "  { \"domain_suffix\": [\"example.com\"], \"action\": \"route\", \"outbound\": \"GitHub\" }",
+    "  { \"domain_keyword\": [\"-cn\"], \"action\": \"route\", \"outbound\": \"Direct\", \"position\": \"head\" }"
+  ],
+  "rules": []
+}

@@ -1,0 +1,142 @@
+{
+  "$comment": "策略层 —— 与环境 / 意图相关的决策，与订阅内容解耦。convert.py 只读不写本文件。",
+  "log": {
+    "level": "info",
+    "timestamp": true
+  },
+  "experimental": {
+    "cache_file": {
+      "enabled": true,
+      "path": "cache.db"
+    },
+    "clash_api": {
+      "external_controller": "127.0.0.1:9090",
+      "default_mode": "规则"
+    }
+  },
+  "http_clients": [
+    {
+      "tag": "rule-set-download",
+      "detour": "Proxy",
+      "domain_resolver": "cn-dns"
+    }
+  ],
+  "inbounds": {
+    "$comment": "三个入站：tun（TUN 模式，接管全部流量）、tun_idle（proxy 模式，空载，只承载 platform.http_proxy）、mixed（两种模式都用）。端口 9870 避开 7890（其它代理客户端常用）与 Windows 动态端口段 49152-65535。tun.stack=system 在 1.14 有效，1.15 起废弃。",
+    "tun": {
+      "enabled": true,
+      "tag": "tun-in",
+      "address": [
+        "172.19.0.1/30",
+        "2001:0470:f9da:fdfa::1/64"
+      ],
+      "mtu": 9000,
+      "auto_route": true,
+      "strict_route": false,
+      "stack": "system",
+      "dns_mode": "hijack",
+      "route_exclude_address": [
+        "127.0.0.0/8",
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "169.254.0.0/16",
+        "fd00::/8",
+        "fe80::/10",
+        "224.0.0.0/4"
+      ],
+      "route_exclude_address_set": [
+        "geoip-cn"
+      ]
+    },
+    "tun_idle": {
+      "$comment": "空载 tun：不接管流量（auto_route=false），只承载 platform.http_proxy —— 官方客户端的 daemon 据此冒充登录用户，把系统代理写进【你的】hive（mixed 的 set_system_proxy 在服务身份下只能写 SYSTEM 的 hive，见 AGENTS.md §4 的 I11）。核心本体忽略 platform.*，所以用 start-proxy.ps1 跑时靠 set_system_proxy 生效。@mixed 由 convert.py 替换为 mixed 端口。换内核版本后核对：protocol/tun/inbound.go、experimental/boxdd/platform_windows.go。",
+      "enabled": true,
+      "tag": "tun-in",
+      "address": [
+        "172.19.0.1/30",
+        "2001:0470:f9da:fdfa::1/64"
+      ],
+      "mtu": 9000,
+      "auto_route": false,
+      "strict_route": false,
+      "dns_mode": "disabled",
+      "platform": {
+        "http_proxy": {
+          "enabled": true,
+          "server": "127.0.0.1",
+          "server_port": "@mixed"
+        }
+      }
+    },
+    "mixed": {
+      "enabled": true,
+      "tag": "mixed-in",
+      "listen": "127.0.0.1",
+      "listen_port": 9870,
+      "set_system_proxy": true
+    }
+  },
+  "dns": {
+    "$comment": "remote-dns 用 1.1.1.1 DoH 且经代理：服务提供方自建的 DoH 对境外域名返回污染答案。DNS 服务器不要写 detour: direct —— 1.14 会报 'detour to an empty direct outbound makes no sense'，不写就是直连。",
+    "final": "remote-dns",
+    "strategy": "ipv4_only",
+    "servers": {
+      "cn": {
+        "type": "udp",
+        "tag": "cn-dns",
+        "server": "223.5.5.5"
+      },
+      "cn_backup": {
+        "type": "udp",
+        "tag": "cn-dns-backup",
+        "server": "119.29.29.29"
+      },
+      "remote": {
+        "type": "https",
+        "tag": "remote-dns",
+        "server": "1.1.1.1",
+        "path": "/dns-query",
+        "detour": "Proxy"
+      }
+    },
+    "rules": [
+      {
+        "rule_set": [
+          "geosite-cn"
+        ],
+        "server": "cn-dns"
+      }
+    ]
+  },
+  "route": {
+    "auto_detect_interface": true,
+    "default_domain_resolver": {
+      "server": "cn-dns"
+    },
+    "$head_rules_comment": "模式档位。GUI 里的档位列表 = default_mode + 所有 clash_mode 取值；clash_mode 只能切路由，切不了 TUN 与系统代理。",
+    "head_rules": [
+      {
+        "clash_mode": "直连",
+        "action": "route",
+        "outbound": "direct"
+      },
+      {
+        "clash_mode": "全局",
+        "action": "route",
+        "outbound": "Proxy"
+      }
+    ],
+    "$extra_rules_comment": "策略层追加的内联规则（不依赖 rule-set）。domain_suffix: [cn] 用来找回被丢弃的 DOMAIN-SUFFIX,cn,DIRECT。",
+    "extra_rules": [
+      {
+        "domain_suffix": [
+          "cn"
+        ],
+        "action": "route",
+        "outbound": "Direct"
+      }
+    ]
+  },
+  "$adblock_comment": "广告拦截不需要单独的策略组：REJECT 目标映射到 groups.json 里的「Reject」组（成员 reject/direct，可在 GUI 里点选 拦截/放行）。"
+}

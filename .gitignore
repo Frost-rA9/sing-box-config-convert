@@ -1,0 +1,21 @@
+# 产物（build/ 也含节点明文凭据）
+out/
+build/
+cache.db
+
+# 节点凭据，绝不入库
+sub/
+reference/
+
+# 可重建 / 仅本地
+bootstrap/
+HANDOFF.md
+tools/core.local
+
+# 环境
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

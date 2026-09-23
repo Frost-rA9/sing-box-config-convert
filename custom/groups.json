@@ -1,0 +1,74 @@
+{
+  "$comment": [
+    "自定义层 · 额外策略组 —— agent / 用户按需增删，重新生成不会丢。",
+    "加组的判断依据（见 AGENTS.md §3）：某类流量需要「与基础策略不同的出站」时才加，两种情况：",
+    "    ① 被封 / 需要特定地区（AI 类服务拒绝 HK 等地区 IP）",
+    "    ② 账号 / 支付绑定在某地区（Apple ID 港区、Google Play 付款日本、微软账号中国）",
+    "反例：不要为订阅里每个分类都建组 —— 那是订阅的冗余，基础 5 组已经覆盖 CN直连/境外代理/广告拦截。",
+    "",
+    "order = 在产物 / GUI 里的位置；缺省 1000（排最后）。21~28 让 custom 组落在 Proxy(20) 与 Direct(30) 之间。",
+    "members 顺序约定：组引用在前（Proxy / Direct / Reject），全部节点（@all）放最后 ——",
+    "    否则 GUI 里展开卡片会看到几十个节点，要翻到最后一屏才能点到 Proxy。",
+    "",
+    "default 说明：",
+    "    Microsoft 用 Direct（账号在中国 → 直连，避免地区/支付错乱）；其余一律 Proxy（跟随主策略，需要时在 GUI 里单独改）。"
+  ],
+  "groups": [
+    {
+      "tag": "AI",
+      "type": "select",
+      "order": 21,
+      "members": ["Proxy", "Direct", "Reject", "@all"],
+      "default": "Proxy"
+    },
+    {
+      "tag": "GitHub",
+      "type": "select",
+      "order": 22,
+      "members": ["Proxy", "Direct", "Reject", "@all"],
+      "default": "Proxy"
+    },
+    {
+      "tag": "Dev",
+      "type": "select",
+      "order": 23,
+      "members": ["Proxy", "Direct", "Reject", "@all"],
+      "default": "Proxy"
+    },
+    {
+      "tag": "Streaming",
+      "type": "select",
+      "order": 24,
+      "members": ["Proxy", "Direct", "Reject", "@all"],
+      "default": "Proxy"
+    },
+    {
+      "tag": "Apple",
+      "type": "select",
+      "order": 25,
+      "members": ["Proxy", "Direct", "Reject", "@all"],
+      "default": "Proxy"
+    },
+    {
+      "tag": "Microsoft",
+      "type": "select",
+      "order": 26,
+      "members": ["Proxy", "Direct", "Reject", "@all"],
+      "default": "Direct"
+    },
+    {
+      "tag": "Google",
+      "type": "select",
+      "order": 27,
+      "members": ["Proxy", "Direct", "Reject", "@all"],
+      "default": "Proxy"
+    },
+    {
+      "tag": "Steam",
+      "type": "select",
+      "order": 28,
+      "members": ["Proxy", "Direct", "Reject", "@all"],
+      "default": "Proxy"
+    }
+  ]
+}

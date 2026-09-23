@@ -1,0 +1,56 @@
+{
+  "$comment": [
+    "自定义层 · 额外映射 —— 把某类流量路由到指定出站 / 规则集。",
+    "rule_set 的 URL 从 base/rules.json 的 rule_set_base 自动推导（geosite-<x> / geoip-<x>），不用手写。",
+    "outbound 省略时默认走「Proxy」。",
+    "position: head（插在最前）/ tail（插在最后）/ 省略（插在兜底规则之前，默认）",
+    "",
+    "⚠️ 本文件里的书写顺序 = 规则优先级（先匹配先赢），不能随便调 —— 各 rule-set 之间有真实重叠：",
+    "    microsoft 列表 include:github        → GitHub 必须在 Microsoft 前，否则 GitHub 组失效",
+    "    category-dev 列表 include:github     → GitHub 必须在 Dev 前",
+    "    microsoft / category-dev 都含 microsoft-dev（nuget、visualstudio）",
+    "    apple / category-dev 都含 apple-dev（developer.apple.com）",
+    "    category-ai-!cn 与 github 都含 github-copilot",
+    "    google 列表 include:youtube         → Streaming 必须排在 Google 前（否则 YouTube 被 Google 组吃掉）",
+    "",
+    "当前顺序的取舍：AI 最先（copilot 地区敏感）；GitHub 次之（唯一能在 Dev/Microsoft 之前拦住 github 的位置）；",
+    "    Dev 在 Apple / Microsoft 前 —— 开发工具（Xcode CDN、nuget、VS marketplace）优先走代理快节点，",
+    "    账号与商店（App Store / Office / Xbox）走对应地区；三家大厂相邻：Apple → Microsoft → Google。",
+    "",
+    "为什么 GitHub 必须有独立组：github.com 直连时通时断（SNI 级间歇干扰，同一小时内实测一次 200、一次超时）—— 别指望直连。"
+  ],
+  "targets": {
+    "AI": {
+      "rule_set": ["geosite-category-ai-!cn"],
+      "outbound": "AI"
+    },
+    "GitHub": {
+      "rule_set": ["geosite-github"],
+      "outbound": "GitHub"
+    },
+    "Dev": {
+      "rule_set": ["geosite-category-dev"],
+      "outbound": "Dev"
+    },
+    "Streaming": {
+      "rule_set": ["geosite-youtube", "geosite-netflix", "geosite-disney", "geosite-spotify"],
+      "outbound": "Streaming"
+    },
+    "Apple": {
+      "rule_set": ["geosite-apple"],
+      "outbound": "Apple"
+    },
+    "Microsoft": {
+      "rule_set": ["geosite-microsoft"],
+      "outbound": "Microsoft"
+    },
+    "Google": {
+      "rule_set": ["geosite-google"],
+      "outbound": "Google"
+    },
+    "Steam": {
+      "rule_set": ["geosite-steam"],
+      "outbound": "Steam"
+    }
+  }
+}

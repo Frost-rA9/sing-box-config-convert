@@ -82,7 +82,7 @@ sing-box check -c out/config.tun.json              # 内核静态校验（内核
 | # | 不变量 |
 |---|---|
 | I1 | `tun.strict_route == false`（Windows 上 true 会装 WFP 过滤器拦非 TUN 流量 → 卡死 WSL） |
-| I2 | `tun.route_exclude_address` 含 8 段（7 私网 + 组播，否则 `auto_route` 抢走 WSL 网段） |
+| I2 | `tun.route_exclude_address` 含 8 段（7 私网 + 组播，否则 `auto_route` 抢走 WSL 网段；android 为 7 段，见 I19） |
 | I3 | `tun.dns_mode == "hijack"`（否则发往内网 DNS 的查询绕过 TUN，吃到污染答案） |
 | I4 | `route.default_domain_resolver` 指向**直连**解析器（指向走代理的会成环） |
 | I5 | 所有 `rule_set` 都是 `type: remote` |
@@ -99,7 +99,7 @@ sing-box check -c out/config.tun.json              # 内核静态校验（内核
 | I16 | rule-set 冷启动快照齐备 |
 | I17 | 三份产物通过 `sing-box check` |
 | I18 | 策略组顺序 = 声明里的 `order` |
-| I19 | android 产物：rule-set **不带** `initial_path`（本机快照路径 Android 上不存在）、mixed **不开** `set_system_proxy`（需特权，SFA 下也不工作） |
+| I19 | android 产物三处差异：rule-set **不带** `initial_path`（本机快照路径 Android 上不存在）、mixed **不开** `set_system_proxy`（需特权，SFA 下也不工作）、`route_exclude_address` **不含** `127.0.0.0/8`（SFA 逐条交给 `VpnService.Builder.excludeRoute()`，而 Java 的 `isLoopbackAddress()` 对整个 127/8 返回 true → 抛 `IllegalArgumentException("Bad address")`） | Android 与桌面端的全部结构差异 |
 
 ---
 

@@ -275,11 +275,16 @@ def check_config(path, mode, decls):
                 ok("strict_route = false（否则 Windows 会装 WFP 过滤器，卡死 WSL）")
             else:
                 bad(f"strict_route 不是 false: {tun.get('strict_route')}")
-            miss = [c for c in PRIVATE_CIDRS if c not in tun.get("route_exclude_address", [])]
+            expect = [c for c in PRIVATE_CIDRS if mode != "android" or c != "127.0.0.0/8"]
+            miss = [c for c in expect if c not in tun.get("route_exclude_address", [])]
             if miss:
                 bad(f"route_exclude_address 缺: {miss}")
+            elif mode == "android" and "127.0.0.0/8" in tun.get("route_exclude_address", []):
+                bad("android 的 route_exclude_address 不能含 127.0.0.0/8 —— "
+                    "Android 的 VpnService.Builder.check() 把整个 127.0.0.0/8 判为 loopback，抛 'Bad address'")
             else:
-                ok("私网段排除齐全（含 172.16.0.0/12，保 WSL/Hyper-V）")
+                ok(f"route_exclude_address 排除齐全（{len(expect)} 段"
+                   f"{'，android 不含 127.0.0.0/8' if mode == 'android' else '，含 172.16.0.0/12 保 WSL/Hyper-V'}）")
             if tun.get("dns_mode") == "hijack":
                 ok("dns_mode = hijack（系统解析器指向 sing-box，防本地 DNS 污染）")
             else:

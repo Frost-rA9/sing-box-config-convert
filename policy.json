@@ -50,7 +50,7 @@
       ]
     },
     "tun_android": {
-      "$comment": "Android / SFA 专用 tun。与 tun 保持一致，仅按设备需要调参（stack / mtu / route_exclude_address_set）。产物层面还有一处差异：android 产物的 rule-set 不带 initial_path（那些冷启动快照是本机的绝对路径，Android 上不存在），改为直接从 url 下载。",
+      "$comment": "Android / SFA 专用 tun。与 tun 保持一致，仅按设备需要调参（stack / mtu / route_exclude_address_set）。两处 Android 特有的差异：① route_exclude_address **不能含 127.0.0.0/8** —— SFA 会把它逐条交给 Android 的 VpnService.Builder.excludeRoute()，而 Java 的 isLoopbackAddress() 对整个 127.0.0.0/8 都返回 true，Builder.check() 于是抛 IllegalArgumentException(\"Bad address\")，内核报 configure tun interface: Bad address（回环本就不会进 VPN，去掉无语义损失）；② 产物不带 initial_path（冷启动快照是本机绝对路径，Android 上不存在），改为直接从 url 下载。",
       "enabled": true,
       "tag": "tun-in",
       "address": [
@@ -63,7 +63,6 @@
       "stack": "system",
       "dns_mode": "hijack",
       "route_exclude_address": [
-        "127.0.0.0/8",
         "10.0.0.0/8",
         "172.16.0.0/12",
         "192.168.0.0/16",

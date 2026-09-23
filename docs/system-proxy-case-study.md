@@ -106,6 +106,14 @@ triggers the impersonated system-proxy setup:
 The interface exists but nothing is routed into it, so only applications that honour
 the system proxy use it — which is the point of "proxy mode".
 
+**If a future version closes this path** — for instance by gating
+`ProcessPlatformOptions` behind `auto_route: true` — the fallback is to run the core
+**in the logged-on user's session** instead of as a service (a plain
+`sing-box run -c config.json` started by the user, not by the SCM). Then
+`set_system_proxy` writes to the right hive on its own, because the process *is* the
+user. The trade-off is that TUN mode then needs an explicit elevation prompt. The
+call chains above are from 1.14.1; re-check them after upgrading.
+
 ## 6. Verification
 
 | check | expected |

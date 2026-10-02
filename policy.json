@@ -1,0 +1,189 @@
+{
+  "$comment": "策略层 —— 与环境 / 意图相关的决策，与订阅内容解耦。convert.py 只读不写本文件。",
+  "log": {
+    "level": "info",
+    "timestamp": true
+  },
+  "experimental": {
+    "cache_file": {
+      "enabled": true,
+      "path": "cache.db"
+    },
+    "clash_api": {
+      "external_controller": "127.0.0.1:9090",
+      "default_mode": "规则"
+    }
+  },
+  "http_clients": [
+    {
+      "tag": "rule-set-download",
+      "detour": "Proxy",
+      "domain_resolver": "cn-dns"
+    }
+  ],
+  "inbounds": {
+    "$comment": "四个入站：tun / tun_android（TUN 模式，桌面 / Android）、tun_idle（proxy 模式，空载）、mixed（通用）。端口 9870 避开 7890 与 Windows 动态端口段。",
+    "tun": {
+      "enabled": true,
+      "tag": "tun-in",
+      "address": [
+        "172.19.0.1/30",
+        "2001:0470:f9da:fdfa::1/64"
+      ],
+      "mtu": 9000,
+      "auto_route": true,
+      "strict_route": false,
+      "stack": "system",
+      "dns_mode": "hijack",
+      "route_exclude_address": [
+        "127.0.0.0/8",
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "169.254.0.0/16",
+        "fd00::/8",
+        "fe80::/10",
+        "224.0.0.0/4"
+      ],
+      "route_exclude_address_set": [
+        "geoip-cn"
+      ]
+    },
+    "tun_android": {
+      "$comment": "Android / SFA 专用 tun，与 tun 保持一致。四处 Android 特有差异及原因见 AGENTS.md 的 I19。",
+      "enabled": true,
+      "tag": "tun-in",
+      "address": [
+        "172.19.0.1/30",
+        "2001:0470:f9da:fdfa::1/64"
+      ],
+      "mtu": 9000,
+      "auto_route": true,
+      "strict_route": false,
+      "stack": "system",
+      "dns_mode": "hijack",
+      "route_exclude_address": [
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "169.254.0.0/16",
+        "fd00::/8",
+        "fe80::/10",
+        "224.0.0.0/4"
+      ]
+    },
+    "tun_idle": {
+      "$comment": "proxy 模式专用：空载 tun，不接管流量，只承载 platform.http_proxy —— 官方客户端据此冒充登录用户设置系统代理（原理与验证见 docs/system-proxy-case-study.zh.md）。@mixed 由 convert.py 替换为 mixed 端口。",
+      "enabled": true,
+      "tag": "tun-in",
+      "address": [
+        "172.19.0.1/30",
+        "2001:0470:f9da:fdfa::1/64"
+      ],
+      "mtu": 9000,
+      "auto_route": false,
+      "strict_route": false,
+      "dns_mode": "disabled",
+      "platform": {
+        "http_proxy": {
+          "enabled": true,
+          "server": "127.0.0.1",
+          "server_port": "@mixed"
+        }
+      }
+    },
+    "mixed": {
+      "enabled": true,
+      "tag": "mixed-in",
+      "listen": "127.0.0.1",
+      "listen_port": 9870,
+      "set_system_proxy": true
+    }
+  },
+  "dns": {
+    "$comment": [
+      "remote-dns 经代理用 1.1.1.1 DoH（提供方自建 DoH 会返回污染答案）；DNS 服务器不写 detour: direct（1.14 会报错）。",
+      "reverse_mapping：TUN 抓到的连接只有目的 IP，路由要按域名分流就必须有域名来源。",
+      "没有它时 prepareMatchMetadata 只能从 fakeip / reverse_mapping 取域名，取不到就留空 ——",
+      "于是 geosite / domain 规则对 TUN 连接全部不参与匹配（实测：TUN 下 chatgpt.com 落 final，",
+      "同规则走 mixed 入站则命中 geosite-category-ai-!cn）。proxy 模式不受影响（HTTP/SOCKS 自带域名）。",
+      "选它而不选 fakeip：保住 geoip-cn 语义、无需 fake-ip-filter、不新增 store_fakeip 依赖；",
+      "代价是应用自带 DoH/DoT 时它盖不到，那一口由 route.head_rules 的 sniff 规则补（见 policy.json 的 $sniff_comment）。见 verify.py 的 I20。"
+    ],
+    "final": "remote-dns",
+    "strategy": "ipv4_only",
+    "reverse_mapping": true,
+    "servers": {
+      "cn": {
+        "type": "udp",
+        "tag": "cn-dns",
+        "server": "223.5.5.5"
+      },
+      "cn_backup": {
+        "type": "udp",
+        "tag": "cn-dns-backup",
+        "server": "119.29.29.29"
+      },
+      "remote": {
+        "type": "https",
+        "tag": "remote-dns",
+        "server": "1.1.1.1",
+        "path": "/dns-query",
+        "detour": "Proxy"
+      }
+    },
+    "rules": [
+      {
+        "rule_set": [
+          "geosite-cn"
+        ],
+        "server": "cn-dns"
+      }
+    ]
+  },
+  "route": {
+    "auto_detect_interface": true,
+    "default_domain_resolver": {
+      "server": "cn-dns"
+    },
+    "$head_rules_comment": "模式档位。GUI 里的档位列表 = default_mode + 所有 clash_mode 取值；clash_mode 只能切路由，切不了 TUN 与系统代理。",
+    "$sniff_comment": [
+      "sniff 规则：从流量本身读域名（TLS SNI / HTTP Host / QUIC ClientHello），补 reverse_mapping 盖不到的那一口 ——",
+      "应用自带解析器时（Android Private DNS/DoT(853)、浏览器「安全 DNS」/DoH(443)），DNS 查询不经过 sing-box，",
+      "没有它就只能按 IP 分流（实测：自建解析器把 www.google.com 解到某 IP，内核看到的 host 为空、落 final）。",
+      "有它之后同一连接会被 sniff 认出 SNI → 命中 geosite-google（实测日志：sniffed protocol: tls, domain: www.google.com）。",
+      "局限：ECH/ESNI 抹掉 SNI 时无效；只有 tls/http/quic 三类包可见。放在 head 最前，且要在所有域名规则之前。"
+    ],
+    "head_rules": [
+      {
+        "action": "sniff",
+        "sniffer": [
+          "tls",
+          "http",
+          "quic"
+        ]
+      },
+      {
+        "clash_mode": "直连",
+        "action": "route",
+        "outbound": "direct"
+      },
+      {
+        "clash_mode": "全局",
+        "action": "route",
+        "outbound": "Proxy"
+      }
+    ],
+    "$extra_rules_comment": "策略层追加的内联规则（不依赖 rule-set）。domain_suffix: [cn] 用来找回被丢弃的 DOMAIN-SUFFIX,cn,DIRECT。",
+    "extra_rules": [
+      {
+        "domain_suffix": [
+          "cn"
+        ],
+        "action": "route",
+        "outbound": "Direct"
+      }
+    ]
+  },
+  "$adblock_comment": "广告拦截不需要单独的策略组：REJECT 目标映射到 groups.json 里的「Reject」组（成员 reject/direct，可在 GUI 里点选 拦截/放行）。"
+}

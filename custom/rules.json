@@ -1,0 +1,29 @@
+{
+  "$comment": [
+    "模板层 · 额外内联规则骨架 —— 这里保持空数组，实际的规则写在 local/rules.json（不入库）。",
+    "解析规则：local/rules.json 存在则整文件替换本文件（不是合并）。",
+    "适用场景：不依赖任何 rule-set 的少量精确域名（rule-set 里没有的服务域、要抢在 base 之前拦的域名）。",
+    "字段与 sing-box route rule 一致（domain / domain_suffix / domain_keyword / domain_regex / ip_cidr / port …），",
+    "外加本仓约定的 action / outbound / position；$ 开头的键生成时会被剥掉，用来写理由。",
+    "",
+    "position 三档（决定规则插在产物里的位置）：",
+    "    head          插在 base 规则之前（只在 policy.head_rules 的模式档位之后）——",
+    "                  必须抢在 base 的 [geosite-cn, geoip-cn] → Direct 之前时用它",
+    "    省略（默认）    插在 `catchall` 锚点之前 —— base 的粗粒度规则之后。",
+    "                  用来「补 base 的缺口」：域名不在任何 geosite 里，proxy 模式（目的地是域名）",
+    "                  又吃不到 geoip 规则，于是落到 final 的那种",
+    "    tail          插在 `catchall` 与 policy.route.extra_rules 之前",
+    "",
+    "⚠️ 一个高频坑：想让某个域名走 Direct，不要指望加 geoip 规则 ——",
+    "    IP 类规则只在目的地已经是 IP 时匹配，域名目的地不会为它发起解析（只有显式 resolve action 才会）。",
+    "    域名层的问题用域名规则解。",
+    "",
+    "⚠️ 要「可切换」就必须 position: head：默认位置在 base 的 [geosite-cn, geoip-cn] → Direct 之后，",
+    "    TUN 模式下目的地是 IP、会被那条先接走，切成 Proxy 组也静默不生效。",
+    "",
+    "示例（照抄到 local/rules.json，去掉本段说明）：",
+    "    { \"domain_suffix\": [\"example.com\"], \"action\": \"route\", \"outbound\": \"Direct\" }",
+    "    { \"domain_suffix\": [\"example.com\"], \"action\": \"route\", \"outbound\": \"Example\", \"position\": \"head\" }"
+  ],
+  "rules": []
+}

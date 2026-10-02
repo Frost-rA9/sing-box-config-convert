@@ -1,0 +1,58 @@
+{
+  "$comment": [
+    "基线层 · 基础路由规则 —— agent 只读。",
+    "设计要点：只区分「CN/私网直连 vs 境外代理 vs 广告拦截」三类意图。",
+    "订阅原文里那些按服务分类的内联规则（Google/Netflix/AI/…）不进入产物，因为基础组只有 5 个、",
+    "这些分类全都落到同一个出站，所以 per-service 规则集是纯冗余 —— 粗粒度分类得到同样的路由结果。",
+    "只有某类流量确实需要「与基础策略不同」时，才在 custom/ 里为它加组 + 加规则集 + 加规则。",
+    "",
+    "规则顺序（convert.py 按此拼接）：",
+    "  [hijack-dns] → [policy.head_rules 模式档位] → [custom position=head]",
+    "  → [本文件的 rules（到 $anchor 之前）] → [custom 默认位置]",
+    "  → [$anchor 兜底] → [custom position=tail] → [policy.extra_rules] → final",
+    "",
+    "$anchor: catchall 标记「兜底走代理」那条，custom 的默认位置就是插在它之前。"
+  ],
+
+  "rule_set_base": {
+    "geosite": "https://fastly.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/",
+    "geoip": "https://fastly.jsdelivr.net/gh/SagerNet/sing-geoip@rule-set/"
+  },
+  "rule_set": {
+    "update_interval": "1d",
+    "format": "binary",
+    "http_client": "rule-set-download",
+    "bootstrap_dir": "bootstrap"
+  },
+
+  "final": "Final",
+
+  "rules": [
+    {
+      "ip_is_private": true,
+      "action": "route",
+      "outbound": "Direct"
+    },
+    {
+      "rule_set": ["geosite-private"],
+      "action": "route",
+      "outbound": "Direct"
+    },
+    {
+      "rule_set": ["geosite-cn", "geoip-cn"],
+      "action": "route",
+      "outbound": "Direct"
+    },
+    {
+      "rule_set": ["geosite-category-ads-all"],
+      "action": "route",
+      "outbound": "Reject"
+    },
+    {
+      "$anchor": "catchall",
+      "rule_set": ["geosite-geolocation-!cn"],
+      "action": "route",
+      "outbound": "Proxy"
+    }
+  ]
+}

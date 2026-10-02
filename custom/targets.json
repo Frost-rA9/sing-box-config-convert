@@ -1,0 +1,28 @@
+{
+  "$comment": [
+    "模板层 · 额外映射骨架 —— 这里保持空对象，实际的映射写在 local/targets.json（不入库）。",
+    "解析规则：local/targets.json 存在则整文件替换本文件（不是合并）。",
+    "作用：把某个 rule-set（geosite-* / geoip-*）的流量路由到指定出站。",
+    "    rule_set 的 URL 由 base/rules.json 的 rule_set_base 自动推导，不用手写；",
+    "    outbound 省略时默认走 Proxy；",
+    "    position: head（插在最前）/ tail（插在最后）/ 省略（插在兜底规则之前，默认）。",
+    "",
+    "⚠️ 书写顺序 = 规则优先级（先匹配先赢），不能随便调 —— SagerNet 各 rule-set 之间有真实重叠：",
+    "    microsoft include:github        → 挡 GitHub 的映射必须排在 microsoft 之前，否则被吃掉",
+    "    category-dev include:github     → 同上",
+    "    microsoft / category-dev 都含 microsoft-dev（nuget、visualstudio）",
+    "    apple / category-dev 都含 apple-dev（developer.apple.com）",
+    "    category-ai-!cn 与 github 都含 github-copilot",
+    "    google include:youtube          → 挡 YouTube 的映射必须排在 google 之前",
+    "排错会让某个组「静默失效」：verify.py 只校验引用存在，校验不了优先级，靠这份清单人工把关。",
+    "",
+    "⚠️ geosite 是域名层、geoip 是 IP 层，别混用：",
+    "    IP 类规则只在目的地已经是 IP 时匹配 —— 域名目的地不会为它发起解析（除非显式 resolve action），",
+    "    所以「某域名不在任何 geosite 里」这种缺口要用域名规则补（custom/rules.json 或 local/rules.json），",
+    "    加一条 geoip 规则是补不上的。",
+    "",
+    "示例（local/targets.json）：",
+    "    { \"Example\": { \"rule_set\": [\"geosite-example\"], \"outbound\": \"Example\" } }"
+  ],
+  "targets": {}
+}

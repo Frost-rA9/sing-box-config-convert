@@ -1,0 +1,51 @@
+{
+  "$comment": [
+    "基线层 · 5 个基础策略组 —— 这是我们维护的地基，agent 只读，不要直接改。",
+    "要调整行为请改 policy.json（环境策略）或在 custom/ 里同名覆盖（convert.py 支持，verify.py 会告警）。",
+    "占位符：@all = 全部节点（生成时展开）、@direct / @reject = 内置出站、@<组名> = 引用其它组。",
+    "注：sing-box 没有 reject 出站类型（reject 是「规则动作」）；内置出站是 {type: block, tag: reject}。",
+    "    tag 叫 reject 只是为了让 GUI / Clash 习惯一致，行为就是拦截。",
+    "组名一律用 ASCII 英文：sing-box 的 Clash API 对非 ASCII tag 支持有坑（PUT /proxies/<中文名> 报 400）。",
+    "order = 产物里策略组的排列顺序，也是 GUI「组」页卡片的显示顺序；缺省 1000（排最后）。",
+    "当前顺序：Auto(10) → Proxy(20) → [custom 组，如 GitHub(25)] → Direct(30) → Reject(40) → Final(50)。"
+  ],
+  "groups": [
+    {
+      "tag": "Auto",
+      "type": "urltest",
+      "order": 10,
+      "members": ["@all"],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "3m",
+      "tolerance": 150
+    },
+    {
+      "tag": "Proxy",
+      "type": "select",
+      "order": 20,
+      "members": ["Auto", "@all"],
+      "default": "Auto"
+    },
+    {
+      "tag": "Direct",
+      "type": "select",
+      "order": 30,
+      "members": ["@direct", "Proxy"],
+      "default": "@direct"
+    },
+    {
+      "tag": "Reject",
+      "type": "select",
+      "order": 40,
+      "members": ["@reject", "@direct"],
+      "default": "@reject"
+    },
+    {
+      "tag": "Final",
+      "type": "select",
+      "order": 50,
+      "members": ["Proxy", "Direct"],
+      "default": "Proxy"
+    }
+  ]
+}

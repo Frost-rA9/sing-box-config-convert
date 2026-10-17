@@ -25,12 +25,12 @@ A profile holds additions only, so a base template update does not force a profi
 ```bash
 uv sync                                                                     # install
 uv run python -m sbconv report <subscription> -p artifacts/services.yaml     # cleaning report
-uv run python -m sbconv render <subscription> -o local/config.json -p artifacts/services.yaml --singbox <sing-box path>
+uv run python -m sbconv render <subscription> -o local/config-tun.json -p artifacts/services.yaml --singbox <sing-box path>
 uv run python -m sbconv render <subscription> -o local/config-test.json -p <profile> --test-inbound 17890 --singbox <path> --run 8
 uv run pytest
 ```
 
-Add `--proxy-mode` to keep a TUN that captures no traffic and let the client set the system proxy. Only applications that honour the system proxy then use the routing rules.
+Add `--proxy-mode` to keep a TUN that captures no traffic and let the client set the system proxy, and write that variant to `local/config-proxy.json`. Only applications that honour the system proxy then use the routing rules.
 
 Work steps:
 
@@ -54,7 +54,7 @@ Work steps:
 - To split one rule set, write a `domain_suffix` rule before it. See `artifacts/example.yaml`.
 - A group without `default` takes its first member. A base template can place the profile groups with `{insert: profile_groups}`.
 - `Direct` is the tag of the direct outbound, with a capital D.
-- Products live in `local/`, which `.gitignore` excludes.
+- Products live in `local/`, which `.gitignore` excludes: `config-tun.json` and `config-proxy.json`.
 
 ## Checks
 

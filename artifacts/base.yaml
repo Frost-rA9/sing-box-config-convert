@@ -125,7 +125,12 @@ route:
     # Resolve the real IP for the IP rules below. A fake-ip connection would
     # otherwise run its geo lookup on 198.18.x.x, so geoip-cn never matches and a
     # China domain reaches the proxy through final. A test leaked qq.ugcimg.cn.
-    - {action: resolve, strategy: prefer_ipv4}
+    #
+    # A China domain resolves through the local resolver. Every other domain uses
+    # the remote resolver, because the local resolver answers a poisoned domain
+    # with a blackhole address.
+    - {action: resolve, strategy: prefer_ipv4, server: local, rule_set: geosite-geolocation-cn}
+    - {action: resolve, strategy: prefer_ipv4, server: remote, invert: true, rule_set: geosite-geolocation-cn}
     # Direct. The rule must reference the outbound with outbound: Direct.
     # action: direct is a no-op on 1.14.3: a matched connection still follows
     # route.final, which means the proxy.

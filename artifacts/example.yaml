@@ -1,0 +1,19 @@
+# Example profile. A profile holds additions only: the base template holds the
+# skeleton and the route order.
+
+groups:
+  # Prefer the US group, and fall back to JP.
+  - tag: Streaming
+    type: selector
+    groups: [US, JP]
+    default: US
+
+# A rule set needs the full CDN link, in a format sing-box accepts (.srs or source).
+rule_sets:
+  - {tag: geosite-netflix, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-netflix.srs"}
+
+route:
+  # The base template places these rules after action: resolve and before the
+  # China direct rules.
+  user_rules:
+    - {rule_set: geosite-netflix, outbound: Streaming}

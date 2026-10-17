@@ -1,0 +1,150 @@
+meta:
+  name: base
+  singbox_version: "1.14"
+  strategy: prefer_ipv4
+
+nodes:
+  drop_name_keywords: [Traffic, Expire, 剩余, 流量, 到期, 官网, 订阅, 网址, 地址, 时间, 有效, 速度]
+  drop_duplicate_by: [server, server_port]
+  plugin_alias:
+    simple-obfs: obfs-local
+    obfs: obfs-local
+  region_keys:
+    - type: chinese_name
+    - type: flag_emoji
+    - type: iso_code
+  region_overrides:
+    - {match_name: 台湾, region: TW}
+  fallback_region: "XX"
+
+# Node groups decide which nodes a user can select.
+# A region code doubles as a group name: HK / JP / SG / TW / US.
+groups:
+  - tag: Auto
+    type: urltest
+    regions: ["*"]
+    url: https://www.gstatic.com/generate_204
+    interval: 5m
+    tolerance: 50
+
+  - tag: HK
+    type: selector
+    regions: [HK]
+  - tag: JP
+    type: selector
+    regions: [JP]
+  - tag: SG
+    type: selector
+    regions: [SG]
+  - tag: TW
+    type: selector
+    regions: [TW]
+  - tag: US
+    type: selector
+    regions: [US]
+
+  # Policy layer. Proxy and Final are real groups. Direct and Reject are not
+  # groups: route.rules implements them with outbound: direct and action: reject.
+  #
+  # Nodes that the five region groups leave over go straight into Proxy and
+  # Final, with no separate group.
+  - tag: Proxy
+    type: selector
+    groups: [Auto, HK, JP, SG, TW, US]
+    regions: ["*"]
+    exclude_regions: [HK, JP, SG, TW, US]
+    default: Auto
+
+  - tag: Final
+    type: selector
+    groups: [Proxy, Auto, HK, JP, SG, TW, US]
+    regions: ["*"]
+    exclude_regions: [HK, JP, SG, TW, US]
+    default: Proxy
+
+dns:
+  servers:
+    - {tag: remote, type: https, server: 8.8.8.8, detour: Proxy}
+    - {tag: local, type: https, server: 223.5.5.5}
+    - {tag: fakeip, type: fakeip, inet4_range: 198.18.0.0/15, inet6_range: fc00::/18}
+  rules:
+    # Block ads and cult domains at the DNS layer. The route layer never sees them.
+    - {rule_set: [geosite-category-ads-all, geosite-falungong], action: reject}
+    # fake-ip exclusions. The fakeip transport has no filter field, so send the
+    # domains that cannot take a fake IP to the local resolver before the fakeip
+    # rule, or the rules below never match.
+    #
+    # First, the domains that must resolve to a local device or to loopback: LAN
+    # names, single-label names, router vendor domains, Plex, QQ quick login, and
+    # the AdGuard local injection domains. The official rule set holds 131 entries.
+    - {rule_set: geosite-private, server: local}
+    # .onion is an RFC 7686 name that the official private list does not hold.
+    - {domain_suffix: [onion], server: local}
+    # Domains that need a real public IP: NTP and time sync. A domain_keyword
+    # matcher would also exclude normal domains such as time.com.
+    - {domain_regex: ['^ntp[0-9]*\.[^.]+\.', '^time[0-9]*\.[^.]+\.'], server: local}
+    - {domain_suffix: [pool.ntp.org, ntp.org.cn], server: local}
+    # Keep all China mainland domains out of fake-ip. A China site needs its real
+    # IP to connect directly, and the local resolver then answers them without a
+    # leak.
+    - {rule_set: geosite-geolocation-cn, server: local}
+    - {query_type: [A, AAAA], rewrite_ttl: 1, server: fakeip}
+    - {clash_mode: Direct, server: local}
+    - {clash_mode: Global, server: remote}
+  final: local
+
+# Download channel for remote rule sets: Auto downloads through a node.
+# urltest measures nothing at startup, so Auto takes its first member then.
+# A detour to direct needs a non-empty direct outbound, or the core stops with FATAL.
+http_clients:
+  - {tag: download, detour: Auto}
+
+rule_sets:
+  # Full CDN links. A test found the bytes equal to raw.githubusercontent, and the
+  # channel works without a proxy.
+  - {tag: geosite-category-ads-all, url: https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-category-ads-all.srs}
+  - {tag: geosite-falungong, url: https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-falungong.srs}
+  - {tag: geosite-private, url: https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-private.srs}
+  - {tag: geosite-geolocation-cn, url: https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-geolocation-cn.srs}
+  - {tag: geoip-cn, url: https://cdn.jsdelivr.net/gh/SagerNet/sing-geoip@rule-set/geoip-cn.srs}
+
+route:
+  default_domain_resolver: local
+  default_http_client: download
+  auto_detect_interface: true
+  rules:
+    - {action: sniff}
+    - {protocol: dns, action: hijack-dns}
+    # Reject
+    - {rule_set: [geosite-category-ads-all, geosite-falungong], action: reject}
+    - {clash_mode: Direct, outbound: direct}
+    - {clash_mode: Global, outbound: Proxy}
+    # Resolve the real IP for the IP rules below. A fake-ip connection would
+    # otherwise run its geo lookup on 198.18.x.x, so geoip-cn never matches and a
+    # China domain reaches the proxy through final. A test leaked qq.ugcimg.cn.
+    - {action: resolve, strategy: prefer_ipv4}
+    # Direct. The rule must reference the outbound with outbound: direct.
+    # action: direct is a no-op on 1.14.3: a matched connection still follows
+    # route.final, which means the proxy.
+    - {ip_is_private: true, outbound: direct}
+    # Insertion point for the profile rules. A profile rule overrides the China
+    # direct rules below, but not the LAN rule above. The position is after
+    # resolve, so a profile rule may match on IP.
+    - {insert: user_rules}
+    - {rule_set: geosite-geolocation-cn, outbound: direct}
+    - {rule_set: geoip-cn, outbound: direct}
+    # No application-level rules: every unmatched connection goes to final
+    # (Final, whose default is Proxy).
+  final: Final
+
+inbounds:
+  - type: tun
+    address: ["172.19.0.1/30", "fdfe:dcba:9876::1/126"]
+    auto_route: true
+    strict_route: true
+    stack: mixed
+  - type: mixed
+    tag: mixed-in
+    listen: 127.0.0.1
+    listen_port: 7890
+    set_system_proxy: true

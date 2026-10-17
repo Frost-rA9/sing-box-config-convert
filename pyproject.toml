@@ -1,0 +1,23 @@
+[project]
+name = "sing-box-config-convert"
+version = "0.1.0"
+description = "把 Clash 订阅转成 sing-box 配置：声明式工件 + 确定性渲染 + 三层验收"
+requires-python = ">=3.12"
+dependencies = [
+    "pyyaml>=6.0",
+    "pydantic>=2.9",
+    "requests>=2.32",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.3"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sbconv"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

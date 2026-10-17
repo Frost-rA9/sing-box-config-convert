@@ -1,0 +1,14 @@
+port: 7890
+mode: rule
+proxies:
+  - {name: "Traffic: 1.00 GB | 100 GB", type: ss, server: 192.0.2.10, port: 10015, cipher: aes-128-gcm, password: fake-pass, plugin: obfs, plugin-opts: {mode: http, host: example.com}}
+  - {name: "🇭🇰 香港 1", type: ss, server: 192.0.2.11, port: 10016, cipher: aes-128-gcm, password: fake-pass, plugin: obfs, plugin-opts: {mode: http, host: example.com}}
+  - {name: "🇯🇵 日本 1", type: vmess, server: 192.0.2.12, port: 443, uuid: 00000000-0000-0000-0000-000000000000, alterId: 0, cipher: auto, tls: true}
+proxy-groups:
+  - {name: Proxies, type: select, proxies: ["🇭🇰 香港 1", "🇯🇵 日本 1"]}
+rules:
+  - DOMAIN-SUFFIX,example.com,Proxies
+  - MATCH,Proxies
+dns:
+  enable: true
+  nameserver: [tls://223.5.5.5]

@@ -1,0 +1,289 @@
+{
+  "log": {
+    "level": "warn"
+  },
+  "dns": {
+    "servers": [
+      {
+        "tag": "remote",
+        "type": "https",
+        "server": "8.8.8.8",
+        "detour": "Proxy"
+      },
+      {
+        "tag": "local",
+        "type": "https",
+        "server": "223.5.5.5"
+      },
+      {
+        "tag": "fakeip",
+        "type": "fakeip",
+        "inet4_range": "198.18.0.0/15",
+        "inet6_range": "fc00::/18"
+      }
+    ],
+    "rules": [
+      {
+        "rule_set": [
+          "geosite-category-ads-all",
+          "geosite-falungong"
+        ],
+        "action": "reject"
+      },
+      {
+        "rule_set": "geosite-private",
+        "server": "local"
+      },
+      {
+        "domain_suffix": [
+          "onion"
+        ],
+        "server": "local"
+      },
+      {
+        "domain_regex": [
+          "^ntp[0-9]*\\.[^.]+\\.",
+          "^time[0-9]*\\.[^.]+\\."
+        ],
+        "server": "local"
+      },
+      {
+        "domain_suffix": [
+          "pool.ntp.org",
+          "ntp.org.cn"
+        ],
+        "server": "local"
+      },
+      {
+        "rule_set": "geosite-geolocation-cn",
+        "server": "local"
+      },
+      {
+        "query_type": [
+          "A",
+          "AAAA"
+        ],
+        "rewrite_ttl": 1,
+        "server": "fakeip"
+      },
+      {
+        "clash_mode": "Direct",
+        "server": "local"
+      },
+      {
+        "clash_mode": "Global",
+        "server": "remote"
+      }
+    ],
+    "final": "local"
+  },
+  "experimental": {
+    "cache_file": {
+      "enabled": true,
+      "store_fakeip": true,
+      "path": "cache-shape4.db"
+    }
+  },
+  "inbounds": [
+    {
+      "type": "mixed",
+      "tag": "in",
+      "listen": "127.0.0.1",
+      "listen_port": 17895
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "urltest",
+      "tag": "Auto",
+      "outbounds": [
+        "HK 1",
+        "JP 1",
+        "US 1"
+      ],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "5m",
+      "tolerance": 50
+    },
+    {
+      "type": "selector",
+      "tag": "HK",
+      "outbounds": [
+        "HK 1"
+      ],
+      "default": "HK 1"
+    },
+    {
+      "type": "selector",
+      "tag": "JP",
+      "outbounds": [
+        "JP 1"
+      ],
+      "default": "JP 1"
+    },
+    {
+      "type": "selector",
+      "tag": "US",
+      "outbounds": [
+        "US 1"
+      ],
+      "default": "US 1"
+    },
+    {
+      "type": "selector",
+      "tag": "其他节点",
+      "outbounds": [
+        "JP 1"
+      ],
+      "default": "JP 1"
+    },
+    {
+      "type": "selector",
+      "tag": "Proxy",
+      "outbounds": [
+        "Auto",
+        "HK",
+        "JP",
+        "US",
+        "其他节点"
+      ],
+      "default": "Auto"
+    },
+    {
+      "type": "selector",
+      "tag": "Final",
+      "outbounds": [
+        "Proxy",
+        "Auto",
+        "HK",
+        "JP",
+        "US",
+        "其他节点"
+      ],
+      "default": "Proxy"
+    },
+    {
+      "type": "direct",
+      "tag": "direct",
+      "domain_resolver": {
+        "server": "local"
+      }
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "HK 1",
+      "server": "192.0.2.11",
+      "server_port": 10016,
+      "method": "aes-128-gcm",
+      "password": "fake",
+      "plugin": "obfs-local",
+      "plugin_opts": "obfs=http;obfs-host=example.com"
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "JP 1",
+      "server": "192.0.2.12",
+      "server_port": 10026,
+      "method": "aes-128-gcm",
+      "password": "fake",
+      "plugin": "obfs-local",
+      "plugin_opts": "obfs=http;obfs-host=example.com"
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "US 1",
+      "server": "192.0.2.13",
+      "server_port": 10036,
+      "method": "aes-128-gcm",
+      "password": "fake",
+      "plugin": "obfs-local",
+      "plugin_opts": "obfs=http;obfs-host=example.com"
+    }
+  ],
+  "route": {
+    "default_domain_resolver": {
+      "server": "local"
+    },
+    "auto_detect_interface": true,
+    "rules": [
+      {
+        "action": "sniff"
+      },
+      {
+        "protocol": "dns",
+        "action": "hijack-dns"
+      },
+      {
+        "rule_set": [
+          "geosite-category-ads-all",
+          "geosite-falungong"
+        ],
+        "action": "reject"
+      },
+      {
+        "clash_mode": "Direct",
+        "outbound": "direct"
+      },
+      {
+        "clash_mode": "Global",
+        "outbound": "Proxy"
+      },
+      {
+        "action": "resolve",
+        "strategy": "prefer_ipv4"
+      },
+      {
+        "ip_is_private": true,
+        "outbound": "direct"
+      },
+      {
+        "rule_set": "geosite-geolocation-cn",
+        "outbound": "direct"
+      },
+      {
+        "rule_set": "geoip-cn",
+        "outbound": "direct"
+      }
+    ],
+    "final": "Final",
+    "rule_set": [
+      {
+        "tag": "geosite-category-ads-all",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-category-ads-all.srs"
+      },
+      {
+        "tag": "geosite-falungong",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-falungong.srs"
+      },
+      {
+        "tag": "geosite-geolocation-cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-geolocation-cn.srs"
+      },
+      {
+        "tag": "geoip-cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://cdn.jsdelivr.net/gh/SagerNet/sing-geoip@rule-set/geoip-cn.srs"
+      },
+      {
+        "tag": "geosite-private",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-private.srs"
+      }
+    ],
+    "default_http_client": "download"
+  },
+  "http_clients": [
+    {
+      "tag": "download",
+      "detour": "direct"
+    }
+  ]
+}

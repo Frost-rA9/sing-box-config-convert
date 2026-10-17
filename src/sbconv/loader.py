@@ -53,7 +53,7 @@ def _try_base64(text: str) -> str | None:
     return out if "://" in out else None
 
 
-def _parse_clash(text: str) -> list[Node] | None:
+def _parse_clash(text: str) -> tuple[list[Node], dict[str, str]] | None:
     try:
         doc = yaml.safe_load(text)
     except yaml.YAMLError:
@@ -75,7 +75,8 @@ def _parse_clash(text: str) -> list[Node] | None:
             raise LoadError(f"节点 {name!r} 缺少 type")
         payload = {k: v for k, v in item.items() if k not in ("name", "type")}
         nodes.append(Node(name=name, kind=kind, origin="clash", clash=payload))
-    return nodes
+    hosts = {str(k): str(v) for k, v in (doc.get("hosts") or {}).items()}
+    return nodes, hosts
 
 
 def _parse_uris(text: str) -> tuple[list[Node], list[tuple[str, str]]]:
@@ -105,11 +106,13 @@ def load(source: str, user_agent: str = DEFAULT_UA) -> LoadResult:
     """Read one carrier and return the node list."""
     text, carrier = _read(source, user_agent)
 
-    nodes = _parse_clash(text)
-    if nodes is not None:
+    nodes = None
+    parsed = _parse_clash(text)
+    if parsed is not None:
+        nodes, hosts = parsed
         if not nodes:
             raise LoadError("Clash 配置里没有 proxies")
-        return LoadResult(nodes=nodes, carrier=f"{carrier}:clash", source=source, skipped=[])
+        return LoadResult(nodes=nodes, carrier=f"{carrier}:clash", source=source, skipped=[], hosts=hosts)
 
     decoded = _try_base64(text)
     if decoded is not None:

@@ -32,6 +32,21 @@ def test_uri_carriers(fixture):
     assert result.nodes[0].uri.startswith("ss://")
 
 
+def test_hosts_table_is_read():
+    """A Clash carrier can declare a hosts table. The loader reads it and keeps the nodes raw."""
+    result = load(str(FIXTURES / "sample-hosts.yaml"))
+    assert result.hosts == {"node-1.example.com": "node-1.example.net", "node-2.example.com": "192.0.2.20"}
+    assert [n.clash["server"] for n in result.nodes] == [
+        "node-1.example.com",
+        "node-2.example.com",
+        "node-3.example.com",
+    ]
+
+
+def test_uri_carrier_has_no_hosts_table():
+    assert load(str(FIXTURES / "sample-uris.txt")).hosts == {}
+
+
 def test_carriers_agree():
     """Three carriers of the same subscription must give the same node list."""
     names = {

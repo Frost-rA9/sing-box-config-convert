@@ -26,7 +26,7 @@ def _prepare(args: argparse.Namespace):
     profile = load_profile(args.profile) if args.profile else None
     artifact = merge(base, profile)
     result = load(args.source, user_agent=args.user_agent)
-    kept, report = clean(result.nodes, artifact.nodes)
+    kept, report = clean(result.nodes, artifact.nodes, result.hosts)
     return artifact, profile, result, kept, report
 
 
@@ -55,6 +55,14 @@ def cmd_report(args: argparse.Namespace) -> int:
         summary[(old, new)] = summary.get((old, new), 0) + 1
     for (old, new), count in sorted(summary.items(), key=lambda kv: -kv[1]):
         print(f"  - {old} → {new}：{count} 个")
+
+    if report.hosts_changed:
+        print(f"地址改写    {len(report.hosts_changed)}")
+        moved: dict[tuple[str, str], int] = {}
+        for _, old, new in report.hosts_changed:
+            moved[(old, new)] = moved.get((old, new), 0) + 1
+        for (old, new), count in sorted(moved.items(), key=lambda kv: -kv[1]):
+            print(f"  - {old} → {new}：{count} 个")
 
     print("地区分布")
     for code, count in sorted(report.distribution.items(), key=lambda kv: -kv[1]):

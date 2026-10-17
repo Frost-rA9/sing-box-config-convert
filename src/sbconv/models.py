@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 # Protocols a URI carrier can convert. The value is the name sing-box expects.
 URI_SCHEMES: dict[str, str] = {
@@ -44,3 +44,5 @@ class LoadResult:
     carrier: str
     source: str
     skipped: list[tuple[str, str]]
+    # The Clash `hosts` table. An empty table means the carrier declares none.
+    hosts: dict[str, str] = field(default_factory=dict)

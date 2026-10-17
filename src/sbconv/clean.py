@@ -4,7 +4,6 @@ Remove information nodes by name before the deduplication by server:port. The
 reverse order removes the real node, because two information nodes share a
 server:port with the first real node here.
 """
-
 from __future__ import annotations
 
 import re
@@ -24,6 +23,8 @@ class CleanReport:
     distribution: dict[str, int] = field(default_factory=dict)
     unknown: list[str] = field(default_factory=list)
     plugin_changed: list[tuple[str, str, str]] = field(default_factory=list)
+    # (node name, old server, new server) for every address the hosts table rewrote.
+    hosts_changed: list[tuple[str, str, str]] = field(default_factory=list)
 
     @property
     def unknown_count(self) -> int:
@@ -102,9 +103,37 @@ def detect_region(name: str, rules: NodeRules) -> tuple[str, str] | None:
     return None
 
 
-def clean(nodes: list[Node], rules: NodeRules) -> tuple[list[Node], CleanReport]:
+def apply_hosts(nodes: list[Node], hosts: dict[str, str]) -> list[tuple[str, str, str]]:
+    """Rewrite a node address with the hosts table of the carrier.
+
+    A table key is an exact domain name. Wildcard keys are not supported and stay
+    unmatched. The table is empty for every carrier except a Clash YAML file.
+    """
+    changed: list[tuple[str, str, str]] = []
+    for node in nodes:
+        if node.clash is not None:
+            old = str(node.clash.get("server") or "")
+            new = hosts.get(old)
+            if new and new != old:
+                node.clash["server"] = new
+                changed.append((node.name, old, new))
+        elif node.uri:
+            parts = urlsplit(node.uri)
+            old = parts.hostname or ""
+            new = hosts.get(old)
+            if new and new != old:
+                userinfo = parts.netloc.rpartition("@")[0]
+                netloc = f"{userinfo}@{new}:{parts.port}" if userinfo else f"{new}:{parts.port}"
+                node.uri = urlunsplit(parts._replace(netloc=netloc))
+                changed.append((node.name, old, new))
+    return changed
+
+
+def clean(nodes: list[Node], rules: NodeRules, hosts: dict[str, str] | None = None) -> tuple[list[Node], CleanReport]:
     """Clean the nodes in place. Return the kept nodes and the report."""
     report = CleanReport()
+    # Address rewriting runs first, so that two names for one endpoint deduplicate.
+    report.hosts_changed = apply_hosts(nodes, hosts or {})
     keywords = [k.lower() for k in rules.drop_name_keywords]
 
     kept: list[Node] = []

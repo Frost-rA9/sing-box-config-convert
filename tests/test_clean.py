@@ -104,6 +104,42 @@ def test_unknown_falls_back():
     assert report.distribution == {"其他地区": 1}
 
 
+def test_hosts_rewrites_the_server():
+    """The hosts table of the carrier rewrites a node address, and the report records it."""
+    nodes = load(str(FIXTURES / "sample-hosts.yaml")).nodes
+    kept, report = clean(nodes, RULES, {"node-1.example.com": "node-1.example.net"})
+    hk = next(n for n in kept if n.name == "🇭🇰 香港 1")
+    assert hk.clash["server"] == "node-1.example.net"
+    assert report.hosts_changed == [("🇭🇰 香港 1", "node-1.example.com", "node-1.example.net")]
+    others = [n.clash["server"] for n in kept if n.name != "🇭🇰 香港 1"]
+    assert "node-2.example.com" in others and "node-3.example.com" in others
+
+
+def test_hosts_can_point_at_an_ip():
+    nodes = load(str(FIXTURES / "sample-hosts.yaml")).nodes
+    kept, report = clean(nodes, RULES, {"node-2.example.com": "192.0.2.20"})
+    jp = next(n for n in kept if n.name == "🇯🇵 日本 1")
+    assert jp.clash["server"] == "192.0.2.20"
+    assert len(report.hosts_changed) == 1
+
+
+def test_hosts_rewrite_runs_before_dedup():
+    """Two names for one endpoint collapse into one node."""
+    a = Node(name="🇭🇰 香港 1", kind="ss", origin="clash", clash={"server": "node-1.example.com", "port": 443})
+    b = Node(name="🇭🇰 香港 2", kind="ss", origin="clash", clash={"server": "node-1.example.net", "port": 443})
+    kept, report = clean([a, b], RULES, {"node-1.example.com": "node-1.example.net"})
+    assert [n.name for n in kept] == ["🇭🇰 香港 1"]
+    assert report.dropped[0][0] == "🇭🇰 香港 2"
+
+
+def test_no_hosts_table_keeps_the_addresses():
+    nodes = load(str(FIXTURES / "sample-clash.yaml")).nodes
+    before = {n.name: n.clash["server"] for n in nodes}
+    kept, report = clean(nodes, RULES, {})
+    assert all(n.clash["server"] == before[n.name] for n in kept)
+    assert report.hosts_changed == []
+
+
 def test_distribution():
     nodes = load(str(FIXTURES / "sample-clash.yaml")).nodes
     _, report = clean(nodes, RULES)

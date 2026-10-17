@@ -30,6 +30,8 @@ uv run python -m sbconv render <subscription> -o local/config-test.json -p <prof
 uv run pytest
 ```
 
+Add `--proxy-mode` to keep a TUN that captures no traffic and let the client set the system proxy. Only applications that honour the system proxy then use the routing rules.
+
 Work steps:
 
 1. Read the request and the two files in `artifacts/`.

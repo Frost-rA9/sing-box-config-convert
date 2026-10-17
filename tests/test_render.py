@@ -12,7 +12,7 @@ from sbconv.models import Node
 from sbconv.artifacts import Artifact, GroupSpec
 from sbconv.check import check
 from sbconv.clean import clean
-from sbconv.render import RenderError, render, resolve_groups
+from sbconv.render import RenderError, proxy_mode, render, resolve_groups
 
 FIXTURES = Path(__file__).parent / "fixtures"
 ARTIFACT = Path(__file__).parents[1] / "artifacts" / "base.yaml"
@@ -170,6 +170,26 @@ def test_group_reference_must_exist():
     kept, report = clean(_ss_nodes(), artifact.nodes)
     with pytest.raises(RenderError, match="未声明在前"):
         render(artifact, kept, report)
+
+
+def test_proxy_mode_keeps_a_tun_carrier():
+    """A client that runs the core as a service needs the TUN platform path for the system proxy."""
+    artifact = _artifact()
+    kept = proxy_mode(artifact.inbounds)
+
+    tun = next(i for i in kept if i["type"] == "tun")
+    assert tun["auto_route"] is False and tun["strict_route"] is False
+    assert tun["dns_mode"] == "disabled"
+    assert tun["platform"]["http_proxy"] == {"enabled": True, "server": "127.0.0.1", "server_port": 7890}
+
+    mixed = next(i for i in kept if i["type"] == "mixed")
+    assert mixed["listen_port"] == 7890
+    assert "set_system_proxy" not in mixed, "裸的 set_system_proxy 会写到服务账户的注册表"
+
+
+def test_proxy_mode_needs_a_listener():
+    with pytest.raises(RenderError, match="listen_port"):
+        proxy_mode([{"type": "tun", "address": ["172.19.0.1/30"]}])
 
 
 def test_group_referencing_later_group_is_error():

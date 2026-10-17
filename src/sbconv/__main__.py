@@ -15,7 +15,7 @@ from .clean import CleanReport, clean
 from .loader import LoadError, load
 from .merge import MergeError, merge
 from .regions import REGION_NAMES
-from .render import RenderError, render
+from .render import RenderError, proxy_mode, render
 from .rulesets import LocalizeError, localize_rule_sets
 
 DEFAULT_ARTIFACT = "artifacts/base.yaml"
@@ -77,6 +77,8 @@ def cmd_report(args: argparse.Namespace) -> int:
 def cmd_render(args: argparse.Namespace) -> int:
     try:
         artifact, _, result, kept, report = _prepare(args)
+        if args.proxy_mode:
+            artifact = artifact.model_copy(update={"inbounds": proxy_mode(artifact.inbounds)})
         if args.test_inbound:
             # A proxy already runs here. Use one mixed inbound to avoid a port
             # clash and an admin prompt.
@@ -182,8 +184,12 @@ def main(argv: list[str] | None = None) -> int:
     p_render.add_argument("-o", "--output", default="local/config.json")
     p_render.add_argument("--singbox", default=None, help="sing-box 可执行文件路径")
     p_render.add_argument("--run", type=int, default=0, help="额外短跑 N 秒做启动验证")
-    p_render.add_argument(
+    inbounds_mode = p_render.add_mutually_exclusive_group()
+    inbounds_mode.add_argument(
         "--test-inbound", type=int, default=0, help="用单个 mixed 入站替换工件里的 inbounds，便于本机试跑"
+    )
+    inbounds_mode.add_argument(
+        "--proxy-mode", action="store_true", help="TUN 不接管流量，由 GUI 设置系统代理（见 system-proxy 案例）"
     )
     p_render.add_argument(
         "--local-rulesets", action="store_true", help="把远程规则集抓到 <输出目录>/rules 并改成 local 引用"

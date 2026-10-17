@@ -99,6 +99,37 @@ def build_node_outbound(node: Node) -> dict[str, Any]:
     return out
 
 
+def proxy_mode(inbounds: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Build proxy-mode inbounds: a TUN that captures no traffic, plus the mixed inbound.
+
+    A client that runs the core as a Windows service writes a bare
+    `set_system_proxy` to the service account, so the desktop user never sees it.
+    The TUN platform path impersonates the logged-on user instead
+    (SagerNet/sing-box#4447). The TUN installs no route, so only applications that
+    honour the system proxy use this configuration.
+    """
+    listener = next(
+        (i for i in inbounds if i.get("type") in ("mixed", "http") and i.get("listen_port")), None
+    )
+    if listener is None:
+        raise RenderError("代理模式需要一个带 listen_port 的 mixed 或 http 入站")
+    server = listener.get("listen") or "127.0.0.1"
+
+    out: list[dict[str, Any]] = []
+    for item in inbounds:
+        if item.get("type") == "tun":
+            carrier = {**item, "auto_route": False, "strict_route": False, "dns_mode": "disabled"}
+            carrier["platform"] = {
+                "http_proxy": {"enabled": True, "server": server, "server_port": listener["listen_port"]}
+            }
+            out.append(carrier)
+            continue
+        if item.get("type") in ("mixed", "http"):
+            item = {k: v for k, v in item.items() if k != "set_system_proxy"}
+        out.append(item)
+    return out
+
+
 def resolve_groups(artifact: Artifact, nodes: list[Node]) -> list[dict[str, Any]]:
     """Resolve the groups that the artifact declares, in declaration order.
 

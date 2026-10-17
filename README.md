@@ -66,3 +66,7 @@ Every render runs two checks:
 `--run 8` starts the kernel for 8 seconds and reports an early exit. Use `--test-inbound` to replace the TUN inbound with one mixed inbound on a free port.
 
 The two checks do not cover the routing. To test a new rule, set `log.level` to `debug`, start the kernel, and read the `router: match` lines for each domain.
+
+## License
+
+GPL-3.0-or-later. See `LICENSE`.

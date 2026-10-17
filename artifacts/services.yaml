@@ -1,0 +1,129 @@
+# Custom groups for the services in use. A profile holds additions only: the base
+# template holds the skeleton, the route order, and the position of these groups.
+#
+# Rule order matters: the first matching rule wins. Write the specific groups
+# first and the broad platform groups last, so a broad set never swallows a
+# specific one. A test found geosite-google also covers youtube.com, and
+# geosite-microsoft also covers github.com.
+
+groups:
+  # Every custom group offers the same choices: Proxy, Direct, the five region
+  # groups, and the nodes that no region group holds.
+  - tag: YouTube
+    type: selector
+    groups: [Proxy, Direct, HK, JP, SG, TW, US]
+    regions: ["*"]
+    exclude_regions: [HK, JP, SG, TW, US]
+    default: Proxy
+  - tag: Netflix
+    type: selector
+    groups: [Proxy, Direct, HK, JP, SG, TW, US]
+    regions: ["*"]
+    exclude_regions: [HK, JP, SG, TW, US]
+    default: Proxy
+  - tag: Twitch
+    type: selector
+    groups: [Proxy, Direct, HK, JP, SG, TW, US]
+    regions: ["*"]
+    exclude_regions: [HK, JP, SG, TW, US]
+    default: Proxy
+  - tag: Telegram
+    type: selector
+    groups: [Proxy, Direct, HK, JP, SG, TW, US]
+    regions: ["*"]
+    exclude_regions: [HK, JP, SG, TW, US]
+    default: Proxy
+  - tag: Discord
+    type: selector
+    groups: [Proxy, Direct, HK, JP, SG, TW, US]
+    regions: ["*"]
+    exclude_regions: [HK, JP, SG, TW, US]
+    default: Proxy
+  - tag: GitHub
+    type: selector
+    groups: [Proxy, Direct, HK, JP, SG, TW, US]
+    regions: ["*"]
+    exclude_regions: [HK, JP, SG, TW, US]
+    default: Proxy
+  - tag: OpenAI
+    type: selector
+    groups: [Proxy, Direct, HK, JP, SG, TW, US]
+    regions: ["*"]
+    exclude_regions: [HK, JP, SG, TW, US]
+    default: Proxy
+  - tag: Anthropic
+    type: selector
+    groups: [Proxy, Direct, HK, JP, SG, TW, US]
+    regions: ["*"]
+    exclude_regions: [HK, JP, SG, TW, US]
+    default: Proxy
+  - tag: Steam
+    type: selector
+    groups: [Proxy, Direct, HK, JP, SG, TW, US]
+    regions: ["*"]
+    exclude_regions: [HK, JP, SG, TW, US]
+    default: Proxy
+  - tag: Epic
+    type: selector
+    groups: [Proxy, Direct, HK, JP, SG, TW, US]
+    regions: ["*"]
+    exclude_regions: [HK, JP, SG, TW, US]
+    default: Proxy
+
+  # Apple and Microsoft go Direct. apple.com resolves to a China CDN address, and
+  # routing it through a node failed in a test.
+  - tag: Apple
+    type: selector
+    groups: [Proxy, Direct, HK, JP, SG, TW, US]
+    regions: ["*"]
+    exclude_regions: [HK, JP, SG, TW, US]
+    default: Direct
+  - tag: Google
+    type: selector
+    groups: [Proxy, Direct, HK, JP, SG, TW, US]
+    regions: ["*"]
+    exclude_regions: [HK, JP, SG, TW, US]
+    default: Proxy
+  - tag: Microsoft
+    type: selector
+    groups: [Proxy, Direct, HK, JP, SG, TW, US]
+    regions: ["*"]
+    exclude_regions: [HK, JP, SG, TW, US]
+    default: Direct
+
+rule_sets:
+  - {tag: geosite-youtube, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-youtube.srs"}
+  - {tag: geosite-netflix, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-netflix.srs"}
+  - {tag: geosite-twitch, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-twitch.srs"}
+  - {tag: geosite-telegram, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-telegram.srs"}
+  - {tag: geosite-discord, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-discord.srs"}
+  - {tag: geosite-github, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-github.srs"}
+  - {tag: geosite-openai, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-openai.srs"}
+  - {tag: geosite-anthropic, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-anthropic.srs"}
+  - {tag: geosite-steam, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-steam.srs"}
+  - {tag: geosite-epicgames, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-epicgames.srs"}
+  - {tag: geosite-apple, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-apple.srs"}
+  - {tag: geosite-google, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-google.srs"}
+  - {tag: geosite-microsoft, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-microsoft.srs"}
+
+route:
+  # The base template places these rules after action: resolve and before the
+  # China direct rules.
+  user_rules:
+    - {rule_set: geosite-youtube, outbound: YouTube}
+    - {rule_set: geosite-netflix, outbound: Netflix}
+    - {rule_set: geosite-twitch, outbound: Twitch}
+    - {rule_set: geosite-telegram, outbound: Telegram}
+    - {rule_set: geosite-discord, outbound: Discord}
+    - {rule_set: geosite-github, outbound: GitHub}
+    - {rule_set: geosite-openai, outbound: OpenAI}
+    - {rule_set: geosite-anthropic, outbound: Anthropic}
+    # Steam downloads go Direct, because a download spends much more traffic than
+    # the store pages. geosite-steam also covers these domains, so this rule must
+    # come before the Steam rule below.
+    - {domain_suffix: [steamcontent.com, steamstatic.com, steam.clngaa.com], outbound: Direct}
+    - {rule_set: geosite-steam, outbound: Steam}
+    - {rule_set: geosite-epicgames, outbound: Epic}
+    - {rule_set: geosite-apple, outbound: Apple}
+    - {rule_set: geosite-google, outbound: Google}
+    - {rule_set: geosite-microsoft, outbound: Microsoft}

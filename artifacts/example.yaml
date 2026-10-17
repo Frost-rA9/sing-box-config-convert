@@ -29,6 +29,12 @@ groups:
     regions: ["*"]
     exclude_regions: [HK, JP, SG, TW, US]
     default: Proxy
+  - tag: Steam
+    type: selector
+    groups: [Proxy, Direct, HK, JP, SG, TW, US]
+    regions: ["*"]
+    exclude_regions: [HK, JP, SG, TW, US]
+    default: Proxy
 
 # A rule set needs the full CDN link, in a format sing-box accepts (.srs or source).
 rule_sets:
@@ -36,6 +42,7 @@ rule_sets:
   - {tag: geosite-google, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-google.srs"}
   - {tag: geosite-github, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-github.srs"}
   - {tag: geosite-microsoft, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-microsoft.srs"}
+  - {tag: geosite-steam, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-steam.srs"}
 
 route:
   # The base template places these rules after action: resolve and before the
@@ -43,9 +50,14 @@ route:
   #
   # Write the specific rule before the broad one. A test found that
   # geosite-google also covers youtube.com and geosite-microsoft also covers
-  # github.com, so the YouTube and GitHub rules must come first, or they never run.
+  # github.com, so the YouTube and GitHub rules come first, or they never run.
+  #
+  # To split one rule set, write a domain_suffix rule in front of it. Steam
+  # downloads are in geosite-steam, so the rule below sends them Direct alone.
   user_rules:
     - {rule_set: geosite-youtube, outbound: YouTube}
     - {rule_set: geosite-google, outbound: Google}
     - {rule_set: geosite-github, outbound: GitHub}
     - {rule_set: geosite-microsoft, outbound: Microsoft}
+    - {domain_suffix: [steamcontent.com, steamstatic.com, steam.clngaa.com], outbound: Direct}
+    - {rule_set: geosite-steam, outbound: Steam}

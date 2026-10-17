@@ -302,6 +302,12 @@ def test_example_profile_renders_with_the_real_base():
 
     youtube = next(o for o in config["outbounds"] if o["tag"] == "YouTube")
     assert youtube["outbounds"][:7] == ["Proxy", "Direct", "HK", "JP", "SG", "TW", "US"]
+
+    # A domain_suffix rule splits one rule set, so it must come before that set.
+    rules = config["route"]["rules"]
+    split = next(i for i, r in enumerate(rules) if r.get("outbound") == "Direct" and "domain_suffix" in r)
+    steam = next(i for i, r in enumerate(rules) if r.get("outbound") == "Steam")
+    assert split < steam
     # sample-clash.yaml has one usable node in Hong Kong, so most region groups are
     # empty. The example groups reference group tags, which exist, so they are not.
     empty = {e.split("'")[1] for e in errors if "为空" in e}

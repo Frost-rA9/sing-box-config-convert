@@ -44,7 +44,7 @@ groups:
     regions: [US]
 
   # Policy layer. Proxy and Final are real groups. Direct and Reject are not
-  # groups: route.rules implements them with outbound: direct and action: reject.
+  # groups: route.rules implements them with outbound: Direct and action: reject.
   #
   # Nodes that the five region groups leave over go straight into Proxy and
   # Final, with no separate group.
@@ -54,6 +54,9 @@ groups:
     regions: ["*"]
     exclude_regions: [HK, JP, SG, TW, US]
     default: Auto
+
+  # The profile groups go here, so a client shows them between Proxy and Final.
+  - {insert: profile_groups}
 
   - tag: Final
     type: selector
@@ -117,22 +120,22 @@ route:
     - {protocol: dns, action: hijack-dns}
     # Reject
     - {rule_set: [geosite-category-ads-all, geosite-falungong], action: reject}
-    - {clash_mode: Direct, outbound: direct}
+    - {clash_mode: Direct, outbound: Direct}
     - {clash_mode: Global, outbound: Proxy}
     # Resolve the real IP for the IP rules below. A fake-ip connection would
     # otherwise run its geo lookup on 198.18.x.x, so geoip-cn never matches and a
     # China domain reaches the proxy through final. A test leaked qq.ugcimg.cn.
     - {action: resolve, strategy: prefer_ipv4}
-    # Direct. The rule must reference the outbound with outbound: direct.
+    # Direct. The rule must reference the outbound with outbound: Direct.
     # action: direct is a no-op on 1.14.3: a matched connection still follows
     # route.final, which means the proxy.
-    - {ip_is_private: true, outbound: direct}
+    - {ip_is_private: true, outbound: Direct}
     # Insertion point for the profile rules. A profile rule overrides the China
     # direct rules below, but not the LAN rule above. The position is after
     # resolve, so a profile rule may match on IP.
     - {insert: user_rules}
-    - {rule_set: geosite-geolocation-cn, outbound: direct}
-    - {rule_set: geoip-cn, outbound: direct}
+    - {rule_set: geosite-geolocation-cn, outbound: Direct}
+    - {rule_set: geoip-cn, outbound: Direct}
     # No application-level rules: every unmatched connection goes to final
     # (Final, whose default is Proxy).
   final: Final

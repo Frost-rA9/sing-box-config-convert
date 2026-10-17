@@ -8,9 +8,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 SUPPORTED_MIN_MAJOR_MINOR = (1, 12)
 
-# The base template marks the insertion point for profile rules with this
-# sentinel in route.rules.
+# The base template marks the insertion points for the profile:
+# route.rules takes the rules, groups takes the profile groups.
 USER_RULES_SLOT = "user_rules"
+PROFILE_GROUPS_SLOT = "profile_groups"
 INSERT_KEY = "insert"
 
 
@@ -128,6 +129,32 @@ class Artifact(BaseModel):
     rule_sets: list[RuleSetSpec] = []
     route: RouteSpec
     inbounds: list[dict[str, Any]] = []
+    # Index of the profile-group insertion point, filled by the validator below.
+    # The output does not contain this field.
+    profile_groups_at: int | None = Field(default=None, exclude=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _strip_group_slot(cls, data: Any) -> Any:
+        """Remove the profile-group sentinel from the raw groups list and keep its index.
+
+        The sentinel must go before the field validator: it is not a group, and
+        `GroupSpec` would reject it.
+        """
+        if not isinstance(data, dict) or not isinstance(data.get("groups"), list):
+            return data
+        kept: list[Any] = []
+        at: int | None = None
+        for item in data["groups"]:
+            if not isinstance(item, dict) or INSERT_KEY not in item:
+                kept.append(item)
+                continue
+            if set(item) != {INSERT_KEY} or item[INSERT_KEY] != PROFILE_GROUPS_SLOT:
+                raise ValueError(f"插入点只能写 {{{INSERT_KEY}: {PROFILE_GROUPS_SLOT}}}，收到 {item!r}")
+            if at is not None:
+                raise ValueError("插入点只能有一处，groups 里出现了两处")
+            at = len(kept)
+        return {**data, "groups": kept, "profile_groups_at": at}
 
     @model_validator(mode="after")
     def _resolve_insert_point(self) -> Artifact:

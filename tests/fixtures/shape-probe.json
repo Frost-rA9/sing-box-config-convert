@@ -164,7 +164,7 @@
     },
     {
       "type": "direct",
-      "tag": "direct",
+      "tag": "Direct",
       "domain_resolver": {
         "server": "local"
       }
@@ -222,7 +222,7 @@
       },
       {
         "clash_mode": "Direct",
-        "outbound": "direct"
+        "outbound": "Direct"
       },
       {
         "clash_mode": "Global",
@@ -234,15 +234,15 @@
       },
       {
         "ip_is_private": true,
-        "outbound": "direct"
+        "outbound": "Direct"
       },
       {
         "rule_set": "geosite-geolocation-cn",
-        "outbound": "direct"
+        "outbound": "Direct"
       },
       {
         "rule_set": "geoip-cn",
-        "outbound": "direct"
+        "outbound": "Direct"
       }
     ],
     "final": "Final",
@@ -283,7 +283,7 @@
   "http_clients": [
     {
       "tag": "download",
-      "detour": "direct"
+      "detour": "Direct"
     }
   ]
 }

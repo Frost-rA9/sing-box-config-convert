@@ -46,7 +46,7 @@ def check(config: dict[str, Any]) -> tuple[list[str], list[str]]:
         if rule.get("action") == "direct":
             errors.append(
                 f"route.rules[{i}] 用了 action: direct，它在 sing-box 1.14.3 上是空操作，"
-                "要写 outbound: direct"
+                "要写 outbound: Direct"
             )
         out = rule.get("outbound")
         if out and out not in defined:
@@ -94,7 +94,9 @@ def check(config: dict[str, Any]) -> tuple[list[str], list[str]]:
     if unused:
         warnings.append(f"{len(unused)} 个规则集没有被任何规则引用，会白下载：{unused}")
 
-    node_tags = [o["tag"] for o in outbounds if o.get("type") not in GROUP_TYPES and o["tag"] != "direct"]
+    # The direct outbound carries no node, so exclude every outbound of that type.
+    direct_tags = {o["tag"] for o in outbounds if o.get("type") == "direct"}
+    node_tags = [o["tag"] for o in outbounds if o.get("type") not in GROUP_TYPES and o["tag"] not in direct_tags]
     referenced = {m for members in group_members.values() for m in members if m in node_tags}
     orphans = [t for t in node_tags if t not in referenced]
     if orphans:

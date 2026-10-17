@@ -25,10 +25,18 @@ def merge(base: Artifact, profile: Profile | None = None) -> Artifact:
         at = len(rules)
     rules[at:at] = profile.route.user_rules
 
+    # Base groups come first, so a profile group can reference them. A base
+    # template that wants the profile groups in a fixed spot marks it with a
+    # `{{insert: profile_groups}}` sentinel.
+    groups = list(base.groups)
+    group_at = base.profile_groups_at
+    if group_at is None:
+        group_at = len(groups)
+    groups[group_at:group_at] = profile.groups
+
     return base.model_copy(
         update={
-            # Base groups come first, so a profile group can reference them.
-            "groups": list(base.groups) + list(profile.groups),
+            "groups": groups,
             "rule_sets": list(base.rule_sets) + list(profile.rule_sets),
             "route": base.route.model_copy(update={"rules": rules}),
         }

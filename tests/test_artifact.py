@@ -159,9 +159,9 @@ def test_resolve_precedes_ip_rules():
 
 
 def test_no_action_direct():
-    """`action: direct` is a no-op on 1.14.3. Use `outbound: direct`."""
+    """`action: direct` is a no-op on 1.14.3. Use `outbound: Direct`."""
     a = load_artifact(str(DEFAULT))
     bad = [r for r in a.route.rules if r.get("action") == "direct"]
     assert bad == [], f"These rules send the traffic around the direct outbound: {bad}"
-    direct_rules = [r for r in a.route.rules if r.get("outbound") == "direct"]
+    direct_rules = [r for r in a.route.rules if r.get("outbound") == "Direct"]
     assert len(direct_rules) >= 3, "All three direct rules must stay: LAN, China domains, China IPs"

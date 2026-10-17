@@ -1,19 +1,51 @@
 # Example profile. A profile holds additions only: the base template holds the
 # skeleton and the route order.
+#
+# Every group offers the same choices: Proxy, Direct, the five region groups, and
+# the nodes that no region group holds.
 
 groups:
-  # Prefer the US group, and fall back to JP.
-  - tag: Streaming
+  - tag: YouTube
     type: selector
-    groups: [US, JP]
-    default: US
+    groups: [Proxy, Direct, HK, JP, SG, TW, US]
+    regions: ["*"]
+    exclude_regions: [HK, JP, SG, TW, US]
+    default: Proxy
+  - tag: Google
+    type: selector
+    groups: [Proxy, Direct, HK, JP, SG, TW, US]
+    regions: ["*"]
+    exclude_regions: [HK, JP, SG, TW, US]
+    default: Proxy
+  - tag: GitHub
+    type: selector
+    groups: [Proxy, Direct, HK, JP, SG, TW, US]
+    regions: ["*"]
+    exclude_regions: [HK, JP, SG, TW, US]
+    default: Proxy
+  - tag: Microsoft
+    type: selector
+    groups: [Proxy, Direct, HK, JP, SG, TW, US]
+    regions: ["*"]
+    exclude_regions: [HK, JP, SG, TW, US]
+    default: Proxy
 
 # A rule set needs the full CDN link, in a format sing-box accepts (.srs or source).
 rule_sets:
-  - {tag: geosite-netflix, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-netflix.srs"}
+  - {tag: geosite-youtube, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-youtube.srs"}
+  - {tag: geosite-google, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-google.srs"}
+  - {tag: geosite-github, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-github.srs"}
+  - {tag: geosite-microsoft, url: "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-microsoft.srs"}
 
 route:
   # The base template places these rules after action: resolve and before the
-  # China direct rules.
+  # China direct rules. Order matters: the first matching rule wins.
+  #
+  # Write the specific rule before the broad one. A test found that
+  # geosite-google also covers youtube.com and geosite-microsoft also covers
+  # github.com, so the YouTube and GitHub rules must come first, or they never run.
   user_rules:
-    - {rule_set: geosite-netflix, outbound: Streaming}
+    - {rule_set: geosite-youtube, outbound: YouTube}
+    - {rule_set: geosite-google, outbound: Google}
+    - {rule_set: geosite-github, outbound: GitHub}
+    - {rule_set: geosite-microsoft, outbound: Microsoft}

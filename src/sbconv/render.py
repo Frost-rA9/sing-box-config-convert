@@ -15,6 +15,10 @@ METHOD_ALIAS = {
     "xchacha20-poly1305": "xchacha20-ietf-poly1305",
 }
 
+# The renderer appends these outbounds, so a group may reference them directly.
+# The tag is capitalized to sit next to Proxy in a client's outbound list.
+BUILTIN_OUTBOUNDS = frozenset({"Direct"})
+
 
 class RenderError(Exception):
     """An artifact and its nodes do not agree."""
@@ -115,7 +119,7 @@ def resolve_groups(artifact: Artifact, nodes: list[Node]) -> list[dict[str, Any]
         # Order: the references to other groups first, then the nodes that
         # regions picks.
         for tag in group.groups:
-            if tag not in declared:
+            if tag not in declared and tag not in BUILTIN_OUTBOUNDS:
                 raise RenderError(f"分组 {group.tag!r} 引用了未声明在前的分组 {tag!r}")
             members.append(tag)
 
@@ -199,7 +203,7 @@ def render(artifact: Artifact, nodes: list[Node], report: CleanReport) -> tuple[
         raise RenderError("没有任何节点可以渲染")
 
     resolver = artifact.route.default_domain_resolver
-    direct = {"type": "direct", "tag": "direct", "domain_resolver": {"server": resolver}}
+    direct = {"type": "direct", "tag": "Direct", "domain_resolver": {"server": resolver}}
     outbounds: list[dict[str, Any]] = []
     outbounds.extend(node_outbounds)
     outbounds.extend(groups)

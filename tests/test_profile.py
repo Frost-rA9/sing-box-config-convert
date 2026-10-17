@@ -88,16 +88,48 @@ def test_user_rules_land_on_the_insert_point():
 
     rules = merged.route.rules
     i = rules.index(rule)
-    assert rules[i - 1] == {"ip_is_private": True, "outbound": "direct"}
-    assert rules[i + 1] == {"rule_set": "geosite-geolocation-cn", "outbound": "direct"}
+    assert rules[i - 1] == {"ip_is_private": True, "outbound": "Direct"}
+    assert rules[i + 1] == {"rule_set": "geosite-geolocation-cn", "outbound": "Direct"}
     assert base.route.rules == [r for r in rules if r != rule], "A merge must not rewrite the base rules"
 
 
-def test_profile_groups_come_after_base_groups():
+def test_profile_groups_land_between_proxy_and_final():
+    """The base template decides where the profile groups sit, so a client shows them in place."""
     merged = merge(_base(), _profile(groups=[{"tag": "Streaming", "type": "selector", "groups": ["US"]}]))
     tags = [g.tag for g in merged.groups]
-    assert tags[:8] == ["Auto", "HK", "JP", "SG", "TW", "US", "Proxy", "Final"]
-    assert tags[-1] == "Streaming"
+    assert tags == ["Auto", "HK", "JP", "SG", "TW", "US", "Proxy", "Streaming", "Final"]
+
+
+def test_group_slot_is_not_a_group():
+    a = _base()
+    assert a.profile_groups_at == 7, "插入点位于 Proxy 之后"
+    assert all(g.tag != "profile_groups" for g in a.groups)
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [{"insert": "other"}, {"insert": "profile_groups", "tag": "X"}],
+)
+def test_bad_group_slot_is_rejected(bad: dict):
+    doc = {
+        "meta": {"name": "t", "singbox_version": "1.14"},
+        "groups": [{"tag": "Proxy", "type": "selector"}, bad],
+        "dns": {"servers": [{"tag": "local", "type": "https", "server": "223.5.5.5"}], "final": "local"},
+        "route": {"default_domain_resolver": "local"},
+    }
+    with pytest.raises(ValidationError, match="插入点只能写"):
+        Artifact.model_validate(doc)
+
+
+def test_two_group_slots_are_rejected():
+    doc = {
+        "meta": {"name": "t", "singbox_version": "1.14"},
+        "groups": [{"insert": "profile_groups"}, {"insert": "profile_groups"}],
+        "dns": {"servers": [{"tag": "local", "type": "https", "server": "223.5.5.5"}], "final": "local"},
+        "route": {"default_domain_resolver": "local"},
+    }
+    with pytest.raises(ValidationError, match="只能有一处"):
+        Artifact.model_validate(doc)
 
 
 def test_empty_profile_is_a_no_op():
@@ -135,7 +167,7 @@ def test_groups_merge_without_an_insert_point():
     "bad",
     [
         {"insert": "other"},
-        {"insert": "user_rules", "outbound": "direct"},
+        {"insert": "user_rules", "outbound": "Direct"},
         {"insert": "user_rules", "ip_is_private": True},
     ],
 )
@@ -221,9 +253,9 @@ def test_merged_artifact_renders_in_order():
                 "default_domain_resolver": "local",
                 "rules": [
                     {"action": "resolve", "strategy": "prefer_ipv4"},
-                    {"ip_is_private": True, "outbound": "direct"},
+                    {"ip_is_private": True, "outbound": "Direct"},
                     {"insert": "user_rules"},
-                    {"rule_set": "geoip-cn", "outbound": "direct"},
+                    {"rule_set": "geoip-cn", "outbound": "Direct"},
                 ],
                 "final": "Proxy",
             },
@@ -242,9 +274,9 @@ def test_merged_artifact_renders_in_order():
 
     assert config["route"]["rules"] == [
         {"action": "resolve", "strategy": "prefer_ipv4"},
-        {"ip_is_private": True, "outbound": "direct"},
+        {"ip_is_private": True, "outbound": "Direct"},
         {"domain_suffix": ["netflix.com"], "outbound": "Streaming"},
-        {"rule_set": "geoip-cn", "outbound": "direct"},
+        {"rule_set": "geoip-cn", "outbound": "Direct"},
     ]
     streaming = next(o for o in config["outbounds"] if o["tag"] == "Streaming")
     assert streaming["outbounds"] == ["US"], "A reference to a base group stays a tag"
@@ -252,17 +284,25 @@ def test_merged_artifact_renders_in_order():
 
 
 def test_example_profile_renders_with_the_real_base():
-    """The example profile in artifacts/ merges with the base template, and the rule lands on the insertion point."""
+    """The example profile in artifacts/ merges with the base template, and its rules keep their order."""
     merged = merge(_base(), load_profile(str(EXAMPLE)))
     kept, report = clean(load(str(FIXTURES / "sample-clash.yaml")).nodes, merged.nodes)
     config, _ = render(merged, kept, report)
     errors, _ = check(config)
 
-    assert {r["tag"] for r in config["route"]["rule_set"]} >= {"geosite-netflix"}
-    rule = next(r for r in config["route"]["rules"] if r.get("outbound") == "Streaming")
-    assert rule == {"rule_set": "geosite-netflix", "outbound": "Streaming"}
-    # sample-clash.yaml has one usable node in Hong Kong, so the US and JP groups
-    # are empty. Streaming references group tags, so it keeps two members and the
-    # assertion also holds the rule: a group reference stays a tag.
+    assert {r["tag"] for r in config["route"]["rule_set"]} >= {
+        "geosite-youtube",
+        "geosite-google",
+        "geosite-github",
+        "geosite-microsoft",
+    }
+    tags = ("YouTube", "Google", "GitHub", "Microsoft")
+    merged_rules = [r for r in config["route"]["rules"] if r.get("outbound") in tags]
+    assert [r["outbound"] for r in merged_rules] == list(tags), "A specific rule must come before the broad one"
+
+    youtube = next(o for o in config["outbounds"] if o["tag"] == "YouTube")
+    assert youtube["outbounds"][:7] == ["Proxy", "Direct", "HK", "JP", "SG", "TW", "US"]
+    # sample-clash.yaml has one usable node in Hong Kong, so most region groups are
+    # empty. The example groups reference group tags, which exist, so they are not.
     empty = {e.split("'")[1] for e in errors if "为空" in e}
-    assert "US" in empty and "Streaming" not in empty
+    assert "YouTube" not in empty

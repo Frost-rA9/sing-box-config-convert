@@ -33,10 +33,10 @@ def test_shape_probe_is_valid_json():
     # Direct and Reject appear as route actions only, not as outbounds.
     tags = {o["tag"] for o in doc["outbounds"]}
     assert "Reject" not in tags
-    assert {"Proxy", "Final", "Auto", "direct"} <= tags
+    assert {"Proxy", "Final", "Auto", "Direct"} <= tags
     # The direct outbound must not be empty, or the rule-set fetch stops with
     # FATAL: detour to an empty direct outbound
-    direct = next(o for o in doc["outbounds"] if o["tag"] == "direct")
+    direct = next(o for o in doc["outbounds"] if o["tag"] == "Direct")
     assert direct.get("domain_resolver")
     assert doc["route"]["default_http_client"] == "download"
 

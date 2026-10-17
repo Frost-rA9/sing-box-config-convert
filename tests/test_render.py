@@ -9,7 +9,7 @@ import pytest
 
 from sbconv import load, load_artifact
 from sbconv.models import Node
-from sbconv.artifacts import Artifact
+from sbconv.artifacts import Artifact, GroupSpec
 from sbconv.check import check
 from sbconv.clean import clean
 from sbconv.render import RenderError, render, resolve_groups
@@ -74,12 +74,12 @@ def _mini_artifact() -> Artifact:
             ],
             "final": "local",
         },
-        "http_clients": [{"tag": "download", "detour": "direct"}],
+        "http_clients": [{"tag": "download", "detour": "Direct"}],
         "rule_sets": [{"tag": "geosite-private", "url": "https://example.invalid/a.srs"}],
         "route": {
             "default_domain_resolver": "local",
             "default_http_client": "download",
-            "rules": [{"action": "sniff"}, {"rule_set": "geosite-private", "outbound": "direct"}],
+            "rules": [{"action": "sniff"}, {"rule_set": "geosite-private", "outbound": "Direct"}],
             "final": "Final",
         },
         "inbounds": [{"type": "mixed", "tag": "in", "listen": "127.0.0.1", "listen_port": 1080}],
@@ -101,17 +101,17 @@ def test_render_happy_path():
 
     other = next(o for o in config["outbounds"] if o["tag"] == "其它")
     assert other["outbounds"] == ["🇯🇵 日本 1", "🇺🇸 美国 1"], "No HK node may remain after the region exclusion"
-    assert "direct" in tags
+    assert "Direct" in tags
 
     proxy = next(o for o in config["outbounds"] if o["tag"] == "Proxy")
     assert proxy["outbounds"] == ["Auto", "HK", "其它"], "A reference to a group stays a tag and never expands into nodes"
     assert proxy["default"] == "Auto"
 
-    direct = next(o for o in config["outbounds"] if o["tag"] == "direct")
+    direct = next(o for o in config["outbounds"] if o["tag"] == "Direct")
     assert direct["domain_resolver"] == {"server": "local"}, "The direct outbound must not be empty, or the rule-set fetch stops with FATAL"
 
     assert config["route"]["default_domain_resolver"] == {"server": "local"}
-    assert config["http_clients"] == [{"tag": "download", "detour": "direct"}]
+    assert config["http_clients"] == [{"tag": "download", "detour": "Direct"}]
     assert "experimental" in config
 
 
@@ -149,6 +149,27 @@ def test_unsupported_protocol_is_skipped_with_warning():
     config, warnings = render(artifact, kept, report)
     assert any("暂不支持协议 vmess" in w for w in warnings)
     assert "vmess-node" not in [o["tag"] for o in config["outbounds"]]
+
+
+def test_custom_group_may_offer_direct():
+    """A custom group can list Direct, so a user can switch that app off the proxy."""
+    artifact = _mini_artifact()
+    artifact.groups.append(GroupSpec(tag="Apple", type="selector", groups=["Proxy", "Direct"], regions=["*"]))
+    kept, report = clean(_ss_nodes(), artifact.nodes)
+    config, _ = render(artifact, kept, report)
+
+    apple = next(o for o in config["outbounds"] if o["tag"] == "Apple")
+    assert apple["outbounds"][:2] == ["Proxy", "Direct"]
+    errors, _ = check(config)
+    assert errors == []
+
+
+def test_group_reference_must_exist():
+    artifact = _mini_artifact()
+    artifact.groups[1].groups = ["HK", "Direct"]
+    kept, report = clean(_ss_nodes(), artifact.nodes)
+    with pytest.raises(RenderError, match="未声明在前"):
+        render(artifact, kept, report)
 
 
 def test_group_referencing_later_group_is_error():

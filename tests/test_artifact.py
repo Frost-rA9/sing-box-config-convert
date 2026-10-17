@@ -37,7 +37,18 @@ def test_default_artifact_loads():
     assert a.route.default_domain_resolver == "local"
     assert [g.tag for g in a.groups] == ["Auto", "HK", "JP", "SG", "TW", "US", "Proxy", "Final"]
     tags = {r.tag for r in a.rule_sets}
-    assert tags == {"geosite-category-ads-all", "geosite-falungong", "geosite-private", "geosite-geolocation-cn", "geoip-cn"}
+    assert tags == {
+        "geosite-category-ads-all",
+        "geosite-falungong",
+        "geosite-private",
+        "geosite-category-ntp",
+        "geosite-nintendo",
+        "geosite-playstation",
+        "geosite-xbox",
+        "geosite-apple-update",
+        "geosite-geolocation-cn",
+        "geoip-cn",
+    }
     referenced = {tag for rule in a.route.rules + a.dns.rules for tag in _rule_set_refs(rule)}
     assert referenced == tags, "Every rule set needs a reference. An unused rule set is downloaded on each startup"
 

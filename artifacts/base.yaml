@@ -83,10 +83,13 @@ dns:
     - {rule_set: geosite-private, server: local}
     # .onion is an RFC 7686 name that the official private list does not hold.
     - {domain_suffix: [onion], server: local}
-    # Domains that need a real public IP: NTP and time sync. A domain_keyword
-    # matcher would also exclude normal domains such as time.com.
-    - {domain_regex: ['^ntp[0-9]*\.[^.]+\.', '^time[0-9]*\.[^.]+\.'], server: local}
-    - {domain_suffix: [pool.ntp.org, ntp.org.cn], server: local}
+    # Domains that need a real public IP: NTP, console NAT traversal, and Apple
+    # update checks. The official rule sets cover them, so the base template does
+    # not carry a hand-written domain list.
+    - {rule_set: [geosite-category-ntp, geosite-nintendo, geosite-playstation, geosite-xbox, geosite-apple-update], server: local}
+    # STUN and the Windows connectivity probes have no official rule set.
+    - {domain_regex: ['^stun[0-9]*\.', '^teredo\.'], server: local}
+    - {domain_suffix: [msftconnecttest.com, msftncsi.com], server: local}
     # Keep all China mainland domains out of fake-ip. A China site needs its real
     # IP to connect directly, and the local resolver then answers them without a
     # leak.
@@ -108,6 +111,11 @@ rule_sets:
   - {tag: geosite-category-ads-all, url: https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-category-ads-all.srs}
   - {tag: geosite-falungong, url: https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-falungong.srs}
   - {tag: geosite-private, url: https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-private.srs}
+  - {tag: geosite-category-ntp, url: https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-category-ntp.srs}
+  - {tag: geosite-nintendo, url: https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-nintendo.srs}
+  - {tag: geosite-playstation, url: https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-playstation.srs}
+  - {tag: geosite-xbox, url: https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-xbox.srs}
+  - {tag: geosite-apple-update, url: https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-apple-update.srs}
   - {tag: geosite-geolocation-cn, url: https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-geolocation-cn.srs}
   - {tag: geoip-cn, url: https://cdn.jsdelivr.net/gh/SagerNet/sing-geoip@rule-set/geoip-cn.srs}
 

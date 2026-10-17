@@ -201,17 +201,16 @@ def build_dns(artifact: Artifact) -> dict[str, Any]:
 
 
 def build_route(artifact: Artifact) -> dict[str, Any]:
-    route: dict[str, Any] = {
-        "default_domain_resolver": {"server": artifact.route.default_domain_resolver},
-        "auto_detect_interface": artifact.route.auto_detect_interface,
-        "rules": list(artifact.route.rules),
-    }
-    if artifact.route.default_http_client:
-        route["default_http_client"] = artifact.route.default_http_client
-    if artifact.route.final:
-        route["final"] = artifact.route.final
+    # Key order follows the schema, so the output reads like the documentation.
+    route: dict[str, Any] = {"rules": list(artifact.route.rules)}
     if artifact.rule_sets:
         route["rule_set"] = [r.model_dump() for r in artifact.rule_sets]
+    if artifact.route.final:
+        route["final"] = artifact.route.final
+    route["auto_detect_interface"] = artifact.route.auto_detect_interface
+    route["default_domain_resolver"] = {"server": artifact.route.default_domain_resolver}
+    if artifact.route.default_http_client:
+        route["default_http_client"] = artifact.route.default_http_client
     return route
 
 
@@ -240,15 +239,13 @@ def render(artifact: Artifact, nodes: list[Node], report: CleanReport) -> tuple[
     outbounds.extend(groups)
     outbounds.append(direct)
 
-    config: dict[str, Any] = {
-        "log": {"level": "warn"},
-        "dns": build_dns(artifact),
-        "inbounds": list(artifact.inbounds),
-        "outbounds": outbounds,
-        "route": build_route(artifact),
-    }
+    config: dict[str, Any] = {"log": {"level": "warn"}, "dns": build_dns(artifact)}
     if artifact.http_clients:
         config["http_clients"] = [c.model_dump(exclude_none=True) for c in artifact.http_clients]
+    config["inbounds"] = list(artifact.inbounds)
+    config["outbounds"] = outbounds
+    config["route"] = build_route(artifact)
+    if artifact.http_clients:
         config["experimental"] = {"cache_file": {"enabled": True, "store_fakeip": True}}
     if report.unknown:
         warnings.append(f"{len(report.unknown)} 个节点未识别地区，归入 {artifact.nodes.fallback_region}")

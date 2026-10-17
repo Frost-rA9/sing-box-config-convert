@@ -151,6 +151,24 @@ def test_unsupported_protocol_is_skipped_with_warning():
     assert "vmess-node" not in [o["tag"] for o in config["outbounds"]]
 
 
+def test_output_key_order_matches_the_schema():
+    """The schema declares an order. Matching it keeps the output readable next to the docs."""
+    artifact = _mini_artifact()
+    kept, report = clean(_ss_nodes(), artifact.nodes)
+    config, _ = render(artifact, kept, report)
+
+    assert list(config) == ["log", "dns", "http_clients", "inbounds", "outbounds", "route", "experimental"]
+    assert list(config["route"]) == [
+        "rules",
+        "rule_set",
+        "final",
+        "auto_detect_interface",
+        "default_domain_resolver",
+        "default_http_client",
+    ]
+    assert list(config["dns"]) == ["servers", "rules", "final", "strategy"]
+
+
 def test_custom_group_may_offer_direct():
     """A custom group can list Direct, so a user can switch that app off the proxy."""
     artifact = _mini_artifact()

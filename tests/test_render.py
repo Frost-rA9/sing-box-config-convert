@@ -12,7 +12,7 @@ from sbconv.models import Node
 from sbconv.artifacts import Artifact, GroupSpec
 from sbconv.check import check
 from sbconv.clean import clean
-from sbconv.render import RenderError, proxy_mode, render, resolve_groups
+from sbconv.render import RenderError, proxy_mode, render, resolve_groups, tun_only
 
 FIXTURES = Path(__file__).parent / "fixtures"
 ARTIFACT = Path(__file__).parents[1] / "artifacts" / "base.yaml"
@@ -188,6 +188,14 @@ def test_group_reference_must_exist():
     kept, report = clean(_ss_nodes(), artifact.nodes)
     with pytest.raises(RenderError, match="未声明在前"):
         render(artifact, kept, report)
+
+
+def test_tun_only_drops_the_listener():
+    """An Android client creates the TUN itself and cannot set a system proxy."""
+    artifact = _artifact()
+    kept = tun_only(artifact.inbounds)
+    assert [i["type"] for i in kept] == ["tun"]
+    assert kept[0]["auto_route"] is True
 
 
 def test_proxy_mode_keeps_a_tun_carrier():

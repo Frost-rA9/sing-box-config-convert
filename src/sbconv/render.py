@@ -99,6 +99,15 @@ def build_node_outbound(node: Node) -> dict[str, Any]:
     return out
 
 
+def tun_only(inbounds: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep the TUN inbounds only, for a client that creates the TUN itself.
+
+    An Android client runs the TUN through its VPN service and cannot set a system
+    proxy without root, so a mixed inbound is useless there.
+    """
+    return [i for i in inbounds if i.get("type") == "tun"]
+
+
 def proxy_mode(inbounds: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Build proxy-mode inbounds: a TUN that captures no traffic, plus the mixed inbound.
 

@@ -15,7 +15,7 @@ from .clean import CleanReport, clean
 from .loader import LoadError, load
 from .merge import MergeError, merge
 from .regions import REGION_NAMES
-from .render import RenderError, proxy_mode, render
+from .render import RenderError, proxy_mode, render, tun_only
 from .rulesets import LocalizeError, localize_rule_sets
 
 DEFAULT_ARTIFACT = "artifacts/base.yaml"
@@ -87,6 +87,8 @@ def cmd_render(args: argparse.Namespace) -> int:
         artifact, _, result, kept, report = _prepare(args)
         if args.proxy_mode:
             artifact = artifact.model_copy(update={"inbounds": proxy_mode(artifact.inbounds)})
+        if args.android:
+            artifact = artifact.model_copy(update={"inbounds": tun_only(artifact.inbounds)})
         if args.test_inbound:
             # A proxy already runs here. Use one mixed inbound to avoid a port
             # clash and an admin prompt.
@@ -198,6 +200,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     inbounds_mode.add_argument(
         "--proxy-mode", action="store_true", help="TUN 不接管流量，由 GUI 设置系统代理（见 system-proxy 案例）"
+    )
+    inbounds_mode.add_argument(
+        "--android", action="store_true", help="只保留 TUN 入站，供 Android 图形客户端使用"
     )
     p_render.add_argument(
         "--local-rulesets", action="store_true", help="把远程规则集抓到 <输出目录>/rules 并改成 local 引用"

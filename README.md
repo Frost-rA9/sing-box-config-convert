@@ -1,17 +1,17 @@
 # sing-box-config-convert
 
-Convert a Clash subscription into a sing-box configuration that the kernel loads.
+Convert a Clash subscription into a configuration that sing-box loads.
 
 ## How it works
 
-The subscription supplies the nodes. A subscription is a URL or a local Clash YAML file. Two YAML files supply the rest.
+The subscription supplies the nodes. It is a URL or a local Clash YAML file. Two YAML files supply the rest.
 
 | File | Holds |
 |---|---|
 | `artifacts/base.yaml` | The base template: DNS, inbounds, the route order, the fixed groups |
 | `artifacts/services.yaml` | The profile: one group and one rule per service |
 
-The tool merges the two files and renders `config.json`. The agent writes no JSON.
+The tool merges the two files and renders the products. The agent does not write JSON.
 
 A profile holds additions only, so a base template update does not force a profile update.
 
@@ -30,7 +30,9 @@ uv run python -m sbconv render <subscription> -o local/config-test.json -p <prof
 uv run pytest
 ```
 
-Add `--proxy-mode` to keep a TUN that captures no traffic and let the client set the system proxy, and write that variant to `local/config-proxy.json`. Only applications that honour the system proxy then use the routing rules.
+Add `--proxy-mode` to keep a TUN that captures no traffic, and write the result to `local/config-proxy.json`. The client then sets the system proxy, and only applications that honour it use the routing rules.
+
+Add `--android` to keep the TUN inbound only, and write the result to `local/config-android.json`. An Android client runs the TUN through its VPN service.
 
 Work steps:
 
@@ -46,26 +48,27 @@ Work steps:
 | 2 | The artifact or the profile is invalid |
 | 3 | The static check failed |
 | 4 | `sing-box check` failed |
-| 5 | The kernel stopped before the timeout |
+| 5 | sing-box stopped before the timeout |
 
 ## Conventions
 
-- The order of `route.user_rules` decides the routing. The first matching rule wins, so write a specific rule before a broad rule.
+- The first matching rule wins, so write a specific rule before a broad rule.
 - To split one rule set, write a `domain_suffix` rule before it. See `artifacts/example.yaml`.
-- A group without `default` takes its first member. A base template can place the profile groups with `{insert: profile_groups}`.
+- A group without `default` takes its first member.
+- A base template places the profile groups with `{insert: profile_groups}`.
 - `Direct` is the tag of the direct outbound, with a capital D.
-- Products live in `local/`, which `.gitignore` excludes: `config-tun.json` and `config-proxy.json`.
+- Products live in `local/`, which `.gitignore` excludes.
 
 ## Checks
 
 Every render runs two checks:
 
 - A static check for tag references, empty groups, and rule-set references. `sing-box check` ignores these.
-- `sing-box check`, when `--singbox` points to the kernel.
+- `sing-box check`, when `--singbox` gives its path.
 
-`--run 8` starts the kernel for 8 seconds and reports an early exit. Use `--test-inbound` to replace the TUN inbound with one mixed inbound on a free port.
+`--run 8` starts sing-box for 8 seconds and reports an early exit. Use `--test-inbound` to replace the TUN inbound with one mixed inbound on a free port.
 
-The two checks do not cover the routing. To test a new rule, set `log.level` to `debug`, start the kernel, and read the `router: match` lines for each domain.
+To test a new rule, set `log.level` to `debug`, start sing-box, and read the `router: match` lines for each domain.
 
 ## License
 

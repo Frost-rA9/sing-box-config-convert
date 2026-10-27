@@ -90,13 +90,14 @@ dns:
     # STUN and the Windows connectivity probes have no official rule set.
     - {domain_regex: ['^stun[0-9]*\.', '^teredo\.'], server: local}
     - {domain_suffix: [msftconnecttest.com, msftncsi.com], server: local}
+    # Mode overrides must come before fakeip, or they never match A/AAAA.
+    - {clash_mode: Direct, server: local}
+    - {clash_mode: Global, server: remote}
     # Keep all China mainland domains out of fake-ip. A China site needs its real
     # IP to connect directly, and the local resolver then answers them without a
     # leak.
     - {rule_set: geosite-geolocation-cn, server: local}
     - {query_type: [A, AAAA], rewrite_ttl: 1, server: fakeip}
-    - {clash_mode: Direct, server: local}
-    - {clash_mode: Global, server: remote}
   final: local
 
 # Download channel for remote rule sets: Auto downloads through a node.

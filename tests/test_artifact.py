@@ -169,6 +169,18 @@ def test_resolve_precedes_ip_rules():
     assert kinds.index("resolve") < kinds.index("ip"), "resolve must run before the IP rules"
 
 
+def test_dns_mode_rules_precede_fakeip():
+    """A clash_mode rule after fakeip never matches A/AAAA."""
+    a = load_artifact(str(DEFAULT))
+    rules = a.dns.rules
+    private_at = next(i for i, r in enumerate(rules) if r.get("rule_set") == "geosite-private")
+    cn_at = next(i for i, r in enumerate(rules) if r.get("rule_set") == "geosite-geolocation-cn")
+    fakeip_at = next(i for i, r in enumerate(rules) if r.get("server") == "fakeip")
+    for mode in ("Direct", "Global"):
+        at = next(i for i, r in enumerate(rules) if r.get("clash_mode") == mode)
+        assert private_at < at < cn_at < fakeip_at, f"clash_mode {mode} must override the CN and fakeip rules"
+
+
 def test_no_action_direct():
     """`action: direct` is a no-op on 1.14.3. Use `outbound: Direct`."""
     a = load_artifact(str(DEFAULT))

@@ -147,6 +147,11 @@ route:
     # direct rules below, but not the LAN rule above. The position is after
     # resolve, so a profile rule may match on IP.
     - {insert: user_rules}
+    # Keep this after user_rules so profile groups keep the proxy-side answer.
+    # For the remaining non-CN domains, use ECS. A China CDN then returns a
+    # China node and geoip-cn matches. The remote resolver must support ECS
+    # (Google does, Cloudflare does not).
+    - {action: resolve, strategy: prefer_ipv4, server: remote, invert: true, rule_set: geosite-geolocation-cn, client_subnet: 223.5.5.0/24}
     - {rule_set: geosite-geolocation-cn, outbound: Direct}
     - {rule_set: geoip-cn, outbound: Direct}
     # No application-level rules: every unmatched connection goes to final

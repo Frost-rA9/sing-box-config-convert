@@ -89,8 +89,23 @@ def test_user_rules_land_on_the_insert_point():
     rules = merged.route.rules
     i = rules.index(rule)
     assert rules[i - 1] == {"ip_is_private": True, "outbound": "Direct"}
-    assert rules[i + 1] == {"rule_set": "geosite-geolocation-cn", "outbound": "Direct"}
+    assert rules[i + 1]["action"] == "resolve"
+    assert rules[i + 1]["client_subnet"] == "223.5.5.0/24"
+    assert rules[i + 2] == {"rule_set": "geosite-geolocation-cn", "outbound": "Direct"}
     assert base.route.rules == [r for r in rules if r != rule], "A merge must not rewrite the base rules"
+
+
+def test_base_re_resolves_with_ecs_after_profile_rules():
+    """Profile rules keep the proxy-side answer. Only the leftovers get the ECS answer."""
+    a = _base()
+    at = a.route.user_rules_at
+    assert at is not None
+    rule = a.route.rules[at]
+    assert rule["action"] == "resolve"
+    assert rule["server"] == "remote"
+    assert rule["invert"] is True
+    assert rule["rule_set"] == "geosite-geolocation-cn"
+    assert rule["client_subnet"] == "223.5.5.0/24"
 
 
 def test_profile_groups_land_between_proxy_and_final():

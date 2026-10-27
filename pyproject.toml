@@ -9,6 +9,7 @@ dependencies = [
     "pyyaml>=6.0",
     "pydantic>=2.9",
     "requests>=2.32",
+    "segno>=1.6",
 ]
 
 [dependency-groups]

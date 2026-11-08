@@ -35,3 +35,35 @@ Scan the QR with sing-box for Android, then confirm the new remote profile.
 - The client creates a remote profile with auto-update. Turn auto-update off after import, because the URL is temporary.
 - For a local profile, download the JSON on the phone and import it from a file. That profile does not depend on this server.
 - With `adb reverse tcp:PORT tcp:PORT`, use `--host 127.0.0.1 --port PORT`.
+
+# Fetch a subscription config
+
+Download a subscription link into a local Clash YAML file. The converter reads files only, so this tool is the one place that fetches.
+
+```bash
+uv sync
+uv run python tools/fetch_config.py '<subscription url>' -o local/ikuuu-sub.yaml
+```
+
+The tool:
+
+- sends `--user-agent`, default `clash.meta`, because a provider can serve a different config per client;
+- rejects a body that is not a Clash config, so a dead link or a link list never reaches the converter;
+- keeps an existing file unless `--force` is given;
+- takes the proxy from the environment, which `requests` also fills from the Windows system proxy.
+
+## Options
+
+| Option | Meaning |
+|---|---|
+| `url` | subscription link; quote it, because the query string carries `&` |
+| `-o`, `--output` | output file; required |
+| `--user-agent` | User-Agent header; default `clash.meta` |
+| `--force` | overwrite an existing file |
+
+Exit code 0 means the file holds a Clash config. Exit code 2 means the file exists without `--force`, the request failed, or the body is not a Clash config.
+
+## Notes
+
+- The file holds node credentials, so it belongs in `local/`, which `.gitignore` excludes.
+- A provider can rotate ports or domains between requests. Fetch again instead of editing the file by hand.

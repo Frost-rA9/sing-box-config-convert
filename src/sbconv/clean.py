@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from urllib.parse import parse_qs, urlsplit
 
 from .artifacts import NodeRules
 from .models import Node
@@ -32,32 +31,17 @@ class CleanReport:
 
 
 def server_port(node: Node) -> tuple[str, str] | None:
-    """Return the server and the port of a node, from either carrier."""
-    if node.clash is not None:
-        server = node.clash.get("server")
-        port = node.clash.get("port")
-        if server is None or port is None:
-            return None
-        return str(server), str(port)
-    if node.uri:
-        parts = urlsplit(node.uri)
-        if parts.hostname is None or parts.port is None:
-            return None
-        return parts.hostname, str(parts.port)
-    return None
+    """Return the server and the port of a node."""
+    server = node.clash.get("server")
+    port = node.clash.get("port")
+    if server is None or port is None:
+        return None
+    return str(server), str(port)
 
 
 def raw_plugin(node: Node) -> str | None:
-    if node.clash is not None:
-        plugin = node.clash.get("plugin")
-        return str(plugin) if plugin else None
-    if node.uri:
-        query = parse_qs(urlsplit(node.uri).query)
-        plugin = (query.get("plugin") or [None])[0]
-        if not plugin:
-            return None
-        return plugin.split(";", 1)[0]
-    return None
+    plugin = node.clash.get("plugin")
+    return str(plugin) if plugin else None
 
 
 def normalize_plugin(plugin: str | None, alias: dict[str, str]) -> str | None:
@@ -107,25 +91,15 @@ def apply_hosts(nodes: list[Node], hosts: dict[str, str]) -> list[tuple[str, str
     """Rewrite a node address with the hosts table of the carrier.
 
     A table key is an exact domain name. Wildcard keys are not supported and stay
-    unmatched. The table is empty for every carrier except a Clash YAML file.
+    unmatched.
     """
     changed: list[tuple[str, str, str]] = []
     for node in nodes:
-        if node.clash is not None:
-            old = str(node.clash.get("server") or "")
-            new = hosts.get(old)
-            if new and new != old:
-                node.clash["server"] = new
-                changed.append((node.name, old, new))
-        elif node.uri:
-            parts = urlsplit(node.uri)
-            old = parts.hostname or ""
-            new = hosts.get(old)
-            if new and new != old:
-                userinfo = parts.netloc.rpartition("@")[0]
-                netloc = f"{userinfo}@{new}:{parts.port}" if userinfo else f"{new}:{parts.port}"
-                node.uri = urlunsplit(parts._replace(netloc=netloc))
-                changed.append((node.name, old, new))
+        old = str(node.clash.get("server") or "")
+        new = hosts.get(old)
+        if new and new != old:
+            node.clash["server"] = new
+            changed.append((node.name, old, new))
     return changed
 
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 from typing import Any
-from urllib.parse import parse_qs, unquote, urlsplit
 
 from .artifacts import Artifact, GroupSpec
 from .clean import CleanReport
@@ -55,45 +54,10 @@ def _ss_from_clash(node: Node) -> dict[str, Any]:
     return out
 
 
-def _ss_from_uri(node: Node) -> dict[str, Any]:
-    import base64
-    import binascii
-
-    parts = urlsplit(node.uri or "")
-    userinfo = unquote(parts.username or "")
-    password = unquote(parts.password or "")
-    if not password:
-        padded = userinfo + "=" * (-len(userinfo) % 4)
-        try:
-            decoded = base64.b64decode(padded).decode("utf-8")
-        except (binascii.Error, ValueError, UnicodeDecodeError) as exc:
-            raise RenderError(f"节点 {node.name!r} 的 ss 链接解不出 method:password") from exc
-        userinfo, _, password = decoded.partition(":")
-    query = parse_qs(parts.query)
-    out: dict[str, Any] = {
-        "type": "shadowsocks",
-        "tag": node.name,
-        "server": parts.hostname or "",
-        "server_port": parts.port or 0,
-        "method": METHOD_ALIAS.get(userinfo, userinfo),
-        "password": password,
-    }
-    if node.plugin:
-        out["plugin"] = node.plugin
-        raw = (query.get("plugin") or [""])[0]
-        _, _, opts = raw.partition(";")
-        if opts:
-            out["plugin_opts"] = opts
-    return out
-
-
 def build_node_outbound(node: Node) -> dict[str, Any]:
     if node.kind != "ss":
         raise RenderError(f"暂不支持协议 {node.kind}（节点 {node.name!r}）")
-    if node.origin == "clash":
-        out = _ss_from_clash(node)
-    else:
-        out = _ss_from_uri(node)
+    out = _ss_from_clash(node)
     if not out["server"] or not out["server_port"] or not out["password"]:
         raise RenderError(f"节点 {node.name!r} 缺少 server / port / password")
     return out

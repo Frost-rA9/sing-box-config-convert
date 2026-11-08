@@ -1,4 +1,4 @@
-"""Convert Clash subscriptions to sing-box configurations."""
+"""Convert Clash configurations to sing-box configurations."""
 
 from .artifacts import Artifact, Profile, load_artifact, load_profile
 from .loader import LoadError, load

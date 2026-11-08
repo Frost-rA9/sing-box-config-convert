@@ -1,10 +1,12 @@
 # sing-box-config-convert
 
-Convert a Clash subscription into a configuration that sing-box loads.
+Convert a Clash configuration into a configuration that sing-box loads.
 
 ## How it works
 
-The subscription supplies the nodes. It is a URL or a local Clash YAML file. Two YAML files supply the rest.
+One Clash YAML file supplies the nodes. It is the only input: the tool reads the
+file and fetches nothing, so the same file always gives the same output. Identify
+the file as `local/<name>.yaml`. Two YAML files supply the rest.
 
 | File | Holds |
 |---|---|
@@ -23,10 +25,10 @@ A profile holds additions only, so a base template update does not force a profi
 ## For an agent
 
 ```bash
-uv sync                                                                     # install
-uv run python -m sbconv report <subscription> -p artifacts/services.yaml     # cleaning report
-uv run python -m sbconv render <subscription> -o local/config-tun.json -p artifacts/services.yaml --singbox <sing-box path>
-uv run python -m sbconv render <subscription> -o local/config-test.json -p <profile> --test-inbound 17890 --singbox <path> --run 8
+uv sync                                                                                            # install
+uv run python -m sbconv report local/<name>.yaml -p artifacts/services.yaml                        # cleaning report
+uv run python -m sbconv render local/<name>.yaml -o local/config-tun.json -p artifacts/services.yaml --singbox <sing-box path>
+uv run python -m sbconv render local/<name>.yaml -o local/config-test.json -p artifacts/services.yaml --test-inbound 17890 --singbox <path> --run 8
 uv run pytest
 ```
 

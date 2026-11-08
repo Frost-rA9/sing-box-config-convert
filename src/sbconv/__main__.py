@@ -25,7 +25,7 @@ def _prepare(args: argparse.Namespace):
     base = load_artifact(args.artifact)
     profile = load_profile(args.profile) if args.profile else None
     artifact = merge(base, profile)
-    result = load(args.source, user_agent=args.user_agent)
+    result = load(args.source)
     kept, report = clean(result.nodes, artifact.nodes, result.hosts)
     return artifact, profile, result, kept, report
 
@@ -37,14 +37,11 @@ def cmd_report(args: argparse.Namespace) -> int:
         print(f"失败：{exc}", file=sys.stderr)
         return 2
 
-    print(f"载体        {result.carrier}")
     print(f"载入节点    {len(result.nodes)}")
     print(f"保留节点    {len(kept)}")
     print(f"剔除节点    {len(report.dropped)}")
     for name, reason in report.dropped:
         print(f"  - {name}：{reason}")
-    if result.skipped:
-        print(f"跳过行      {len(result.skipped)}")
     if report.renamed:
         print(f"改名        {len(report.renamed)}")
         for old, new in report.renamed:
@@ -180,10 +177,9 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
 
     def shared(p: argparse.ArgumentParser) -> None:
-        p.add_argument("source", help="订阅链接或 Clash YAML 文件")
+        p.add_argument("source", help="Clash YAML 配置文件")
         p.add_argument("-a", "--artifact", default=DEFAULT_ARTIFACT, help="基础模板")
         p.add_argument("-p", "--profile", default=None, help="用户策略文件，只写增量")
-        p.add_argument("--user-agent", default="clash.meta")
 
     p_report = sub.add_parser("report", help="载入与清洗，出报告")
     shared(p_report)

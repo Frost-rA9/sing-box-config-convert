@@ -28,7 +28,6 @@ def _ss_nodes() -> list[Node]:
         return Node(
             name=name,
             kind="ss",
-            origin="clash",
             clash={
                 "server": server,
                 "port": port,
@@ -126,17 +125,16 @@ def test_leftover_nodes_listed_directly():
     assert proxy["outbounds"][6:] == []
 
 
-def test_ss_plugin_from_both_carriers():
+def test_ss_plugin_from_clash():
     artifact = _mini_artifact()
-    for fixture in ("sample-clash.yaml", "sample-uris.b64"):
-        nodes = load(str(FIXTURES / fixture)).nodes
-        kept, report = clean(nodes, artifact.nodes)
-        config, warnings = render(artifact, kept, report)
-        assert warnings == ["暂不支持协议 vmess（节点 '🇯🇵 日本 1'）"]
-        hk = next(o for o in config["outbounds"] if o["tag"] == "🇭🇰 香港 1")
-        assert hk["plugin"] == "obfs-local"
-        assert hk["plugin_opts"] == "obfs=http;obfs-host=example.com"
-        assert hk["method"] == "aes-128-gcm"
+    nodes = load(str(FIXTURES / "sample-clash.yaml")).nodes
+    kept, report = clean(nodes, artifact.nodes)
+    config, warnings = render(artifact, kept, report)
+    assert warnings == ["暂不支持协议 vmess（节点 '🇯🇵 日本 1'）"]
+    hk = next(o for o in config["outbounds"] if o["tag"] == "🇭🇰 香港 1")
+    assert hk["plugin"] == "obfs-local"
+    assert hk["plugin_opts"] == "obfs=http;obfs-host=example.com"
+    assert hk["method"] == "aes-128-gcm"
 
 
 def test_unsupported_protocol_is_skipped_with_warning():
@@ -145,7 +143,7 @@ def test_unsupported_protocol_is_skipped_with_warning():
     kept, report = clean(nodes, artifact.nodes)
     kept.append(copy.deepcopy(kept[0]))
     kept[-1].name, kept[-1].kind = "vmess-node", "vmess"
-    kept[-1].clash, kept[-1].origin = {"server": "x", "port": 1}, "clash"
+    kept[-1].clash = {"server": "x", "port": 1}
     config, warnings = render(artifact, kept, report)
     assert any("暂不支持协议 vmess" in w for w in warnings)
     assert "vmess-node" not in [o["tag"] for o in config["outbounds"]]

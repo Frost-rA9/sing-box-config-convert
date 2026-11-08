@@ -228,7 +228,6 @@ def _nodes() -> list[Node]:
         return Node(
             name=name,
             kind="ss",
-            origin="clash",
             clash={
                 "server": server,
                 "port": port,

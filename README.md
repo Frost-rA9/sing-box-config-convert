@@ -11,11 +11,12 @@ the file as `local/<name>.yaml`. Two YAML files supply the rest.
 | File | Holds |
 |---|---|
 | `artifacts/base.yaml` | The base template: DNS, inbounds, the route order, the fixed groups |
-| `artifacts/services.yaml` | The profile: one group and one rule per service |
+| `artifacts/services.yaml` | The template profile: one group and one rule per service |
+| `local/services.yaml` | Your profile: the template profile plus your own rules; git ignores this directory |
 
-The tool merges the two files and renders the products. The agent does not write JSON.
+The tool merges the base template and the profile, then renders the products. The agent does not write JSON.
 
-A profile holds additions only, so a base template update does not force a profile update.
+A profile holds additions only, so a base template update does not force a profile update. A personal rule stays in `local/services.yaml`, so the template stays generic.
 
 ## Requirements
 
@@ -26,9 +27,10 @@ A profile holds additions only, so a base template update does not force a profi
 
 ```bash
 uv sync                                                                                            # install
-uv run python -m sbconv report local/<name>.yaml -p artifacts/services.yaml                        # cleaning report
-uv run python -m sbconv render local/<name>.yaml -o local/config-tun.json -p artifacts/services.yaml --singbox <sing-box path>
-uv run python -m sbconv render local/<name>.yaml -o local/config-test.json -p artifacts/services.yaml --test-inbound 17890 --singbox <path> --run 8
+cp artifacts/services.yaml local/services.yaml                                                     # once: your profile
+uv run python -m sbconv report local/<name>.yaml -p local/services.yaml                            # cleaning report
+uv run python -m sbconv render local/<name>.yaml -o local/config-tun.json -p local/services.yaml --singbox <sing-box path>
+uv run python -m sbconv render local/<name>.yaml -o local/config-test.json -p local/services.yaml --test-inbound 17890 --singbox <path> --run 8
 uv run pytest
 ```
 
@@ -38,8 +40,8 @@ Add `--android` to keep the TUN inbound only, and write the result to `local/con
 
 Work steps:
 
-1. Read the request and the two files in `artifacts/`.
-2. Write the new groups, rule sets, and rules into a profile.
+1. Read the request, `artifacts/base.yaml`, and `local/services.yaml`.
+2. Write the new groups, rule sets, and rules into `local/services.yaml`.
 3. Render the configuration.
 4. Read the exit code, the warnings, and the check output. Change the profile until all checks pass.
 5. Test the routing of a new rule, because the two checks cannot see two overlapping rule sets.

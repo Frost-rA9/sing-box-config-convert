@@ -1,5 +1,7 @@
-# Custom groups for the services in use. A profile holds additions only: the base
-# template holds the skeleton, the route order, and the position of these groups.
+# Template profile for the services in use. Copy it to local/services.yaml and add
+# your own rules there, so this file stays generic. A profile holds additions
+# only: the base template holds the skeleton, the route order, and the position of
+# these groups.
 #
 # Rule order matters: the first matching rule wins. Write the specific groups
 # first and the broad platform groups last, so a broad set never swallows a

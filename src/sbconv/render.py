@@ -54,12 +54,75 @@ def _ss_from_clash(node: Node) -> dict[str, Any]:
     return out
 
 
+def _tls_opts(clash: dict[str, Any]) -> dict[str, Any] | None:
+    """Return the TLS block, or None when the node writes no TLS."""
+    if not clash.get("tls"):
+        return None
+    tls: dict[str, Any] = {"enabled": True}
+    server_name = clash.get("servername") or clash.get("sni")
+    if server_name:
+        tls["server_name"] = str(server_name)
+    if clash.get("skip-cert-verify"):
+        tls["insecure"] = True
+    if clash.get("alpn"):
+        tls["alpn"] = [str(a) for a in clash["alpn"]]
+    return tls
+
+
+def _transport(clash: dict[str, Any], name: str) -> dict[str, Any] | None:
+    """Return the transport block. A plain TCP node writes none."""
+    network = str(clash.get("network") or "tcp").lower()
+    if network == "tcp":
+        return None
+    if network == "ws":
+        opts = clash.get("ws-opts") or {}
+        transport: dict[str, Any] = {"type": "ws"}
+        if opts.get("path"):
+            transport["path"] = str(opts["path"])
+        headers = {str(k): str(v) for k, v in (opts.get("headers") or {}).items()}
+        if headers:
+            transport["headers"] = headers
+        return transport
+    raise RenderError(f"节点 {name!r} 的 network {network!r} 暂不支持")
+
+
+def _vmess_from_clash(node: Node) -> dict[str, Any]:
+    clash = node.clash or {}
+    out: dict[str, Any] = {
+        "type": "vmess",
+        "tag": node.name,
+        "server": str(clash.get("server") or ""),
+        "server_port": int(clash.get("port") or 0),
+        "uuid": str(clash.get("uuid") or ""),
+        "security": str(clash.get("cipher") or "auto").lower(),
+        "alter_id": int(clash.get("alterId") or 0),
+    }
+    tls = _tls_opts(clash)
+    if tls:
+        out["tls"] = tls
+    transport = _transport(clash, node.name)
+    if transport:
+        out["transport"] = transport
+    if clash.get("tfo"):
+        out["tcp_fast_open"] = True
+    return out
+
+
+# The protocol a node writes decides which builder reads it. `udp` carries no
+# sing-box field: the core sends UDP over any outbound that supports it.
+BUILDERS = {"ss": _ss_from_clash, "vmess": _vmess_from_clash}
+
+
 def build_node_outbound(node: Node) -> dict[str, Any]:
-    if node.kind != "ss":
+    builder = BUILDERS.get(node.kind)
+    if builder is None:
         raise RenderError(f"暂不支持协议 {node.kind}（节点 {node.name!r}）")
-    out = _ss_from_clash(node)
-    if not out["server"] or not out["server_port"] or not out["password"]:
-        raise RenderError(f"节点 {node.name!r} 缺少 server / port / password")
+    out = builder(node)
+    if not out["server"] or not out["server_port"]:
+        raise RenderError(f"节点 {node.name!r} 缺少 server / port")
+    credential = "uuid" if node.kind == "vmess" else "password"
+    if not out.get(credential):
+        raise RenderError(f"节点 {node.name!r} 缺少 {credential}")
     return out
 
 

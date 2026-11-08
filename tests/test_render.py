@@ -12,7 +12,7 @@ from sbconv.models import Node
 from sbconv.artifacts import Artifact, GroupSpec
 from sbconv.check import check
 from sbconv.clean import clean
-from sbconv.render import RenderError, proxy_mode, render, resolve_groups, tun_only
+from sbconv.render import RenderError, build_node_outbound, proxy_mode, render, resolve_groups, tun_only
 
 FIXTURES = Path(__file__).parent / "fixtures"
 ARTIFACT = Path(__file__).parents[1] / "artifacts" / "base.yaml"
@@ -130,11 +130,79 @@ def test_ss_plugin_from_clash():
     nodes = load(str(FIXTURES / "sample-clash.yaml")).nodes
     kept, report = clean(nodes, artifact.nodes)
     config, warnings = render(artifact, kept, report)
-    assert warnings == ["暂不支持协议 vmess（节点 '🇯🇵 日本 1'）"]
+    assert warnings == []
     hk = next(o for o in config["outbounds"] if o["tag"] == "🇭🇰 香港 1")
     assert hk["plugin"] == "obfs-local"
     assert hk["plugin_opts"] == "obfs=http;obfs-host=example.com"
     assert hk["method"] == "aes-128-gcm"
+
+
+def test_vmess_from_clash():
+    artifact = _mini_artifact()
+    nodes = load(str(FIXTURES / "sample-clash.yaml")).nodes
+    kept, report = clean(nodes, artifact.nodes)
+    config, warnings = render(artifact, kept, report)
+    assert warnings == []
+    jp = next(o for o in config["outbounds"] if o["tag"] == "🇯🇵 日本 1")
+    assert jp == {
+        "type": "vmess",
+        "tag": "🇯🇵 日本 1",
+        "server": "192.0.2.12",
+        "server_port": 443,
+        "uuid": "00000000-0000-0000-0000-000000000000",
+        "security": "auto",
+        "alter_id": 0,
+        "tls": {"enabled": True},
+    }
+
+
+def test_vmess_websocket_transport_and_tls():
+    """A ws node with its own Host header: the header belongs to the transport, not to TLS."""
+    node = Node(
+        name="🇭🇰 香港 9",
+        kind="vmess",
+        clash={
+            "server": "n.example.com",
+            "port": 13487,
+            "uuid": "01315cdf-d8be-370a-9bdf-a4a3259cd61b",
+            "cipher": "auto",
+            "alterId": 1,
+            "tls": True,
+            "servername": "speedtest.example.net",
+            "skip-cert-verify": True,
+            "network": "ws",
+            "ws-opts": {"path": "/tutorial/x.m3u8", "headers": {"Host": "speedtest.example.net"}},
+            "udp": True,
+        },
+    )
+    out = build_node_outbound(node)
+    assert out["alter_id"] == 1
+    assert out["tls"] == {"enabled": True, "server_name": "speedtest.example.net", "insecure": True}
+    assert out["transport"] == {"type": "ws", "path": "/tutorial/x.m3u8", "headers": {"Host": "speedtest.example.net"}}
+    assert "udp" not in out
+
+
+def test_vmess_writes_no_transport_for_tcp():
+    node = Node(name="x", kind="vmess", clash={"server": "a.example.com", "port": 1, "uuid": "u", "network": "tcp"})
+    out = build_node_outbound(node)
+    assert "transport" not in out and "tls" not in out
+
+
+def test_vmess_unsupported_network_is_named():
+    """An unknown network must fail loudly, because a transport-less vmess node would dial the wrong way."""
+    node = Node(name="x", kind="vmess", clash={"server": "a.example.com", "port": 1, "uuid": "u", "network": "grpc"})
+    with pytest.raises(RenderError, match="network 'grpc'"):
+        build_node_outbound(node)
+
+
+def test_vmess_without_uuid_is_skipped():
+    artifact = _mini_artifact()
+    nodes = load(str(FIXTURES / "sample-clash.yaml")).nodes
+    kept, report = clean(nodes, artifact.nodes)
+    kept[-1].clash = {k: v for k, v in kept[-1].clash.items() if k != "uuid"}
+    config, warnings = render(artifact, kept, report)
+    assert warnings == ["节点 '🇯🇵 日本 1' 缺少 uuid"]
+    assert "🇯🇵 日本 1" not in [o["tag"] for o in config["outbounds"]]
 
 
 def test_unsupported_protocol_is_skipped_with_warning():
@@ -142,11 +210,11 @@ def test_unsupported_protocol_is_skipped_with_warning():
     nodes = load(str(FIXTURES / "sample-clash.yaml")).nodes
     kept, report = clean(nodes, artifact.nodes)
     kept.append(copy.deepcopy(kept[0]))
-    kept[-1].name, kept[-1].kind = "vmess-node", "vmess"
+    kept[-1].name, kept[-1].kind = "vless-node", "vless"
     kept[-1].clash = {"server": "x", "port": 1}
     config, warnings = render(artifact, kept, report)
-    assert any("暂不支持协议 vmess" in w for w in warnings)
-    assert "vmess-node" not in [o["tag"] for o in config["outbounds"]]
+    assert any("暂不支持协议 vless" in w for w in warnings)
+    assert "vless-node" not in [o["tag"] for o in config["outbounds"]]
 
 
 def test_output_key_order_matches_the_schema():

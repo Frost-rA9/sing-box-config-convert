@@ -205,6 +205,78 @@ def test_vmess_without_uuid_is_skipped():
     assert "🇯🇵 日本 1" not in [o["tag"] for o in config["outbounds"]]
 
 
+def test_trojan_from_clash():
+    """A trojan node writes no `tls` flag, so the builder must add the block itself."""
+    node = Node(
+        name="🇭🇰 香港 1",
+        kind="trojan",
+        clash={
+            "server": "hk.example.net",
+            "port": 10115,
+            "password": "pw",
+            "sni": "m.ctrip.com",
+            "skip-cert-verify": True,
+            "udp": True,
+        },
+    )
+    assert build_node_outbound(node) == {
+        "type": "trojan",
+        "tag": "🇭🇰 香港 1",
+        "server": "hk.example.net",
+        "server_port": 10115,
+        "password": "pw",
+        "tls": {"enabled": True, "server_name": "m.ctrip.com", "insecure": True},
+    }
+
+
+def test_trojan_without_tls_hints_keeps_the_block():
+    """TLS is the protocol, not an option: no sni and no skip-cert-verify still need the block."""
+    node = Node(name="x", kind="trojan", clash={"server": "a.example.com", "port": 1, "password": "pw"})
+    out = build_node_outbound(node)
+    assert out["tls"] == {"enabled": True}
+    assert "network" not in out, "Both networks are on by default"
+
+
+def test_trojan_udp_off_writes_only_tcp():
+    node = Node(
+        name="x",
+        kind="trojan",
+        clash={"server": "a.example.com", "port": 1, "password": "pw", "udp": False},
+    )
+    assert build_node_outbound(node)["network"] == ["tcp"]
+
+
+def test_trojan_websocket_transport():
+    node = Node(
+        name="🇸🇬 新加坡 1",
+        kind="trojan",
+        clash={
+            "server": "sg.example.net",
+            "port": 443,
+            "password": "pw",
+            "sni": "sg.example.net",
+            "network": "ws",
+            "ws-opts": {"path": "/ws"},
+        },
+    )
+    assert build_node_outbound(node)["transport"] == {"type": "ws", "path": "/ws"}
+
+
+def test_trojan_nodes_reach_the_groups():
+    """Registered under `trojan`, a trojan node is not dropped as an unknown protocol."""
+    artifact = _mini_artifact()
+    nodes = [
+        Node(name="🇭🇰 香港 1", kind="trojan", clash={"server": "hk.example.net", "port": 1, "password": "pw"}),
+        Node(name="🇯🇵 日本 1", kind="trojan", clash={"server": "jp.example.net", "port": 2, "password": "pw"}),
+    ]
+    kept, report = clean(nodes, artifact.nodes)
+    config, warnings = render(artifact, kept, report)
+    assert warnings == []
+    assert [o["tag"] for o in config["outbounds"][:2]] == ["🇭🇰 香港 1", "🇯🇵 日本 1"]
+    errors, _ = check(config)
+    assert errors == []
+
+
 def test_unsupported_protocol_is_skipped_with_warning():
     artifact = _mini_artifact()
     nodes = load(str(FIXTURES / "sample-clash.yaml")).nodes

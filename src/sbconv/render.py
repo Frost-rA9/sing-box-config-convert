@@ -54,9 +54,13 @@ def _ss_from_clash(node: Node) -> dict[str, Any]:
     return out
 
 
-def _tls_opts(clash: dict[str, Any]) -> dict[str, Any] | None:
-    """Return the TLS block, or None when the node writes no TLS."""
-    if not clash.get("tls"):
+def _tls_opts(clash: dict[str, Any], always: bool = False) -> dict[str, Any] | None:
+    """Return the TLS block, or None when the node writes no TLS.
+
+    `always` builds the block without a `tls` flag: a trojan node never writes the
+    flag, because TLS is part of the protocol.
+    """
+    if not always and not clash.get("tls"):
         return None
     tls: dict[str, Any] = {"enabled": True}
     server_name = clash.get("servername") or clash.get("sni")
@@ -108,9 +112,33 @@ def _vmess_from_clash(node: Node) -> dict[str, Any]:
     return out
 
 
+def _trojan_from_clash(node: Node) -> dict[str, Any]:
+    clash = node.clash or {}
+    out: dict[str, Any] = {
+        "type": "trojan",
+        "tag": node.name,
+        "server": str(clash.get("server") or ""),
+        "server_port": int(clash.get("port") or 0),
+        "password": str(clash.get("password") or ""),
+    }
+    # The core enables both networks by default, so only a node that writes the
+    # flag off needs the field.
+    if clash.get("udp") is False:
+        out["network"] = ["tcp"]
+    tls = _tls_opts(clash, always=True)
+    if tls:
+        out["tls"] = tls
+    transport = _transport(clash, node.name)
+    if transport:
+        out["transport"] = transport
+    if clash.get("tfo"):
+        out["tcp_fast_open"] = True
+    return out
+
+
 # The protocol a node writes decides which builder reads it. `udp` carries no
-# sing-box field: the core sends UDP over any outbound that supports it.
-BUILDERS = {"ss": _ss_from_clash, "vmess": _vmess_from_clash}
+# field by default; trojan maps `udp: false` to `network` to switch UDP off.
+BUILDERS = {"ss": _ss_from_clash, "vmess": _vmess_from_clash, "trojan": _trojan_from_clash}
 
 
 def build_node_outbound(node: Node) -> dict[str, Any]:

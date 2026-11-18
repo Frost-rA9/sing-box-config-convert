@@ -2,7 +2,7 @@
 name = "sing-box-config-convert"
 version = "0.1.0"
 description = "把 Clash 订阅转成 sing-box 配置：声明式工件 + 确定性渲染 + 三层验收"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 dependencies = [

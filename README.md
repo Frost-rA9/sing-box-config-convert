@@ -20,7 +20,7 @@ A profile holds additions only, so a base template update does not force a profi
 
 ## Requirements
 
-- Python 3.12 or later, managed by `uv`
+- Python 3.14 or later, managed by `uv`
 - sing-box 1.14.x
 
 ## For an agent
